@@ -1,2 +1,9 @@
 # Personal_Configs
-Collection of configuration files for various tools I use.
+
+## Tools
+1. [Bash Shell](#Bash Shell)
+2. [VIM](#VIM)
+
+# Bash Shell
+
+# VIM
