@@ -6,7 +6,6 @@ export EDITOR=vim
 # -Werror
 alias debug='g++ -Wall -Werror -ggdb -fsanitize=address -fsanitize=undefined'
 alias release='g++ -O3 -fomit-frame-pointer -funroll-loops -fno-exceptions -fno-rtti'
-alias search='~/C++/Searcher/search'
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
@@ -121,5 +120,3 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-
-. "$HOME/.cargo/env"
