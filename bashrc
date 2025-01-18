@@ -4,8 +4,11 @@
 
 export EDITOR=vim
 # -Werror
-alias debug='g++ -Wall -Werror -ggdb -fsanitize=address -fsanitize=undefined'
-alias release='g++ -O3 -fomit-frame-pointer -funroll-loops -fno-exceptions -fno-rtti'
+# Custom Command Alias
+alias debugC='gcc -Wall -Werror -ggdb -fsanitize=address -fsanitize=undefined'
+alias releaseC='gcc -O3 -fomit-frame-pointer -funroll-loops -fno-exceptions -fno-rtti'
+alias debugC++='g++ -Wall -Werror -ggdb -fsanitize=address -fsanitize=undefined'
+alias releaseC++='g++ -O3 -fomit-frame-pointer -funroll-loops -fno-exceptions -fno-rtti'
 
 # don't put duplicate lines or lines starting with space in the history.
 # See bash(1) for more options
