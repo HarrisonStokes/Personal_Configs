@@ -44,3 +44,4 @@ This will install the VIM plugins that are in the ``.vimrc``. The plugins are:
 
 The rest of the ``.vimrc`` contains various remappings to make quality of life and work flow easier. The ``.vimrc`` does contains a table of contents with line numbers if you want to modify it for yourself.
 
+**Will add key remaps into a table soon**
