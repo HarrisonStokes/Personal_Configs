@@ -35,7 +35,7 @@
 "set nocompatible       " Disable Vi compatibility mode
 set encoding=utf-8     " Set default encoding to UTF-8
 set fileencoding=utf-8 " Set file-specific encoding to UTF-8
-set undofile           " Enable persistent undo
+"set undofile           " Enable persistent undo
 "set swapfile           " Enable swap files for recovery
 "set clipboard=unnamedplus " Use system clipboard for yank, delete, paste, etc.
 set wildmenu           " Enable command-line completion
