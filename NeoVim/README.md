@@ -53,14 +53,14 @@ Y - Yank from cursor to end of line.
 ### Delete Operations (Insert Mode)
 \<C-d> - Delete current word.
 \<C-)> - Delete inside parentheses.
-\<C-s><C-b> - Delete inside square brackets.
-\<C-c><C-b> - Delete inside curly braces.
-\<C-a><C-b> - Delete inside angle brackets.
+\<C-s>\<C-b> - Delete inside square brackets.
+\<C-c>\<C-b> - Delete inside curly braces.
+\<C-a>\<C-b> - Delete inside angle brackets.
 
 
 ### Undo/Redo (Insert Mode)
-<C-u> - Undo.
-<C-r><C-u> - Redo.
+\<C-u> - Undo.
+\<C-r>\<C-u> - Redo.
 
 ### Line Movement (Visual Mode)
 J - Move selected lines down.
@@ -68,7 +68,7 @@ K - Move selected lines up.
 
 ### Indentation (Visual Mode)
 < - Indent left.
-> - Indent right.
+\> - Indent right.
 
 
 ## Mode Switching
