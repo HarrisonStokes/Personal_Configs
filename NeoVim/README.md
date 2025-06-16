@@ -1,5 +1,5 @@
 # Key mappings
-<leader> = <space>
+\<leader> = <space>
 
 ## Navigation and Movement
 ### Cursor Postion and History
