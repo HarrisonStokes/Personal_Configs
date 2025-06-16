@@ -18,29 +18,29 @@
 \<C-k> - Move to the up window.
 
 ### Insert Mode Navigation
-\<C-I> - Move to beginning of line.
-\<C-A> - Move to end of line.
-\<C-w> - Move forward one word.
-\<C-b> - Move back to start of word.
-\<C-e> - Move to end of word.
+\<C-I> - Move to beginning of line.\n
+\<C-A> - Move to end of line.\n
+\<C-w> - Move forward one word.\n
+\<C-b> - Move back to start of word.\n
+\<C-e> - Move to end of word.\n
 
 ### Character Finding
-\<C-n> - Find next character while in Insert mode.
-\<C-p> - Find previous character while in Insert mode.
-: - Repeat last f/F/t/T character search.
+\<C-n> - Find next character while in Insert mode.\n
+\<C-p> - Find previous character while in Insert mode.\n
+: - Repeat last f/F/t/T character search.\n
 
 ## Search and Highlighting
 ### Search Navigation
-n - Next search result.
-N - Previous search result.
+n - Next search result.\n
+N - Previous search result.\n
 
 
 ### Search Entry
-\<C-s> - Exit insert and start search.
+\<C-s> - Exit insert and start search.\n
 
 ### Clear Highlights
-\<C-c> - Clear search highlights.
-\<C-c> - Clear highlights while in insert.
+\<C-c> - Clear search highlights.\n
+\<C-c> - Clear highlights while in insert.\n
 
 ## Command Mode Access
 ### Command Entry
@@ -51,16 +51,16 @@ N - Previous search result.
 Y - Yank from cursor to end of line.
 
 ### Delete Operations (Insert Mode)
-\<C-d> - Delete current word.
-\<C-)> - Delete inside parentheses.
-\<C-s>\<C-b> - Delete inside square brackets.
-\<C-c>\<C-b> - Delete inside curly braces.
-\<C-a>\<C-b> - Delete inside angle brackets.
+\<C-d> - Delete current word.\n
+\<C-)> - Delete inside parentheses.\n
+\<C-s>\<C-b> - Delete inside square brackets.\n
+\<C-c>\<C-b> - Delete inside curly braces.\n
+\<C-a>\<C-b> - Delete inside angle brackets.\n
 
 
 ### Undo/Redo (Insert Mode)
-\<C-u> - Undo.
-\<C-r>\<C-u> - Redo.
+\<C-u> - Undo.\n
+\<C-r>\<C-u> - Redo.\n
 
 ### Line Movement (Visual Mode)
 J - Move selected lines down.
@@ -73,15 +73,15 @@ K - Move selected lines up.
 
 ## Mode Switching
 ### Exit Insert Mode
-jk - Exit to normal mode.
+jk - Exit to normal mode.\n
 
 ### Exit Terminal Mode
-\<Esc> - Exit terminal mode to normal.
+\<Esc> - Exit terminal mode to normal.\n
 
 ### File Operations
-\<leader>w - Save file.
-\<leader>q - Quit.
-\<leader>z - Save file and quit.
+\<leader>w - Save file.\n
+\<leader>q - Quit.\n
+\<leader>z - Save file and quit.\n
 
 
 ## Nvim Tree
