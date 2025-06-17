@@ -646,7 +646,7 @@ install_font() {
         log_warning "Font download failed. Icons may not display correctly."
     fi
 
-    if [[ $OS == "WSL" ]]; then
+    if [[ "$OS" == "WSL" ]]; then
         log_warning "WSL needs you to perform extra step for fonts."
         echo "1. Download $font_url onto your Windows file system."
         echo "2. Extract zip."
