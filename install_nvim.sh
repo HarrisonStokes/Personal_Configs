@@ -575,9 +575,7 @@ confirm_action() {
 update_packages_for_manager() {
     case "$PACKAGE_MANAGER" in
         "apt")
-            sudo apt update 
-            sleep 1
-            sudo apt upgrade -y
+            sudo apt update && sudo apt upgrade -y
             ;;
         "dnf")
             sudo dnf upgrade -y
