@@ -54,12 +54,17 @@ command_exists() {
 detect_os() {
     case "$(uname -s)" in
         Linux*)
-            if [[ -f /proc/version ]] && grep -q Microsoft /proc/version; then
+            if [[ -f /proc/version ]] && grep -qi Microsoft /proc/version; then
+                OS="WSL"
+            elif [[ -f /proc/sys/kernel/osrelease ]] && grep -qi microsoft /proc/sys/kernel/osrelease; then
+                OS="WSL"
+            elif [[ -d /run/WSL ]]; then
+                OS="WSL"
+            elif [[ -n "$WSLENV" ]]; then
                 OS="WSL"
             else
                 OS="Linux"
-            fi
-            ;;
+            fi            ;;
         Darwin*)
             OS="macOS"
             ;;
