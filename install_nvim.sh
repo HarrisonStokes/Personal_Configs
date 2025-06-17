@@ -306,7 +306,7 @@ get_nvim_url() {
         "Linux"|"WSL"|"FreeBSD")
             case "$ARCH" in
                 "x86_64")
-                    echo "$base_url/nvim-linux64.tar.gz"
+                    echo "$base_url/nvim-linux86_64.tar.gz"
                     ;;
                 "arm64")
                     echo "$base_url/nvim-linux-arm64.tar.gz"
