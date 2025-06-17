@@ -20,7 +20,10 @@ return {
         "williamboman/mason-lspconfig.nvim",
         dependencies = { "mason.nvim" },
         config = function()
-            require("mason-lspconfig").setup({
+            local mason_lspconfig = require("mason-lspconfig")
+
+            -- Basic setup first
+            mason_lspconfig.setup({
                 ensure_installed = {
                     "clangd",        -- C/C++
                     "rust_analyzer", -- Rust
@@ -30,7 +33,7 @@ return {
                     "cssls",         -- CSS
                     "ts_ls",         -- JavaScript/TypeScript
                 },
-                automatic_installation = false, -- Disable to prevent errors
+                automatic_installation = false,
             })
         end,
     },
@@ -45,6 +48,7 @@ return {
         },
         config = function()
             local lspconfig = require("lspconfig")
+            local mason_lspconfig = require("mason-lspconfig")
             local cmp_nvim_lsp = require("cmp_nvim_lsp")
 
             -- LSP keymaps (only set when LSP attaches)
@@ -69,7 +73,7 @@ return {
 
             local capabilities = cmp_nvim_lsp.default_capabilities()
 
-            -- Configure diagnostic signs
+            -- Configure diagnostic signs only
             vim.diagnostic.config({
                 signs = {
                     text = {
@@ -80,40 +84,121 @@ return {
                     },
                 },
             })
-            -- Manual LSP setup (more reliable)
-            local servers = {
-                clangd = {
-                    cmd = { "clangd", "--background-index" },
-                },
-                rust_analyzer = {
-                    settings = {
-                        ["rust-analyzer"] = {
-                            cargo = {
-                                allFeatures = true,
+            -- Version-agnostic setup handlers
+            local handlers = {
+                -- Default handler for servers without custom config
+                function(server_name)
+                    lspconfig[server_name].setup({
+                        capabilities = capabilities,
+                    })
+                end,
+
+                -- Custom handler for clangd with our preferred command
+                ["clangd"] = function()
+                    lspconfig.clangd.setup({
+                        cmd = { "clangd", "--background-index" },
+                        capabilities = capabilities,
+                    })
+                end,
+
+                -- Custom handler for rust_analyzer
+                ["rust_analyzer"] = function()
+                    lspconfig.rust_analyzer.setup({
+                        capabilities = capabilities,
+                        settings = {
+                            ["rust-analyzer"] = {
+                                cargo = {
+                                    allFeatures = true,
+                                },
                             },
                         },
+                    })
+                end,
+
+                -- Custom handler for pylsp
+                ["pylsp"] = function()
+                    lspconfig.pylsp.setup({
+                        capabilities = capabilities,
+                        settings = {
+                            pylsp = {
+                                plugins = {
+                                    pycodestyle = {
+                                        maxLineLength = 100,
+                                    },
+                                },
+                            },
+                        },
+                    })
+                end,
+            }
+
+            -- Try different methods based on mason-lspconfig version
+            local setup_success = false
+
+            -- Method 1: Try new API (mason-lspconfig >= 2.0.0)
+            if not setup_success then
+                local success = pcall(function()
+                    mason_lspconfig.setup({
+                        handlers = handlers
+                    })
+                end)
+                if success then
+                    setup_success = true
+                    print("Using mason-lspconfig new API (handlers in setup)")
+                end
+            end
+
+            -- Method 2: Try old API (mason-lspconfig < 2.0.0)
+            if not setup_success and mason_lspconfig.setup_handlers then
+                local success = pcall(function()
+                    mason_lspconfig.setup_handlers(handlers)
+                end)
+                if success then
+                    setup_success = true
+                    print("Using mason-lspconfig old API (setup_handlers)")
+                end
+            end
+
+            -- Method 3: Fallback to manual setup
+            if not setup_success then
+                print("Using manual LSP setup (fallback)")
+                -- Manual setup for each server
+                local servers = {
+                    clangd = {
+                        cmd = { "clangd", "--background-index" },
+                        capabilities = capabilities,
                     },
-                },
-                pylsp = {
-                    settings = {
-                        pylsp = {
-                            plugins = {
-                                pycodestyle = {
-                                    maxLineLength = 100,
+                    rust_analyzer = {
+                        capabilities = capabilities,
+                        settings = {
+                            ["rust-analyzer"] = {
+                                cargo = {
+                                    allFeatures = true,
                                 },
                             },
                         },
                     },
-                },
-                bashls = {},
-                html = {},
-                cssls = {},
-                ts_ls = {},
-            }
+                    pylsp = {
+                        capabilities = capabilities,
+                        settings = {
+                            pylsp = {
+                                plugins = {
+                                    pycodestyle = {
+                                        maxLineLength = 100,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    bashls = { capabilities = capabilities },
+                    html = { capabilities = capabilities },
+                    cssls = { capabilities = capabilities },
+                    ts_ls = { capabilities = capabilities },
+                }
 
-            for server, config in pairs(servers) do
-                config.capabilities = capabilities
-                lspconfig[server].setup(config)
+                for server_name, config in pairs(servers) do
+                    lspconfig[server_name].setup(config)
+                end
             end
         end,
     },
