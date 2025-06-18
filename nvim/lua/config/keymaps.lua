@@ -29,7 +29,7 @@ keymap("n", "<C-l>", "<C-w>l", { desc = "Move to right window" })
 
 -- File operations (from modern config)
 keymap("n", "<leader>w", "<cmd>w<cr>", { desc = "Save file" })
-keymap("n", "<leader>q", "<cmd>q<cr>", { desc = "Quit" })
+keymap("n", "<leader>q", "<cmd>q!<cr>", { desc = "Quit" })
 keymap("n", "<leader>z", "<cmd>wq<cr>", { desc = "Save and quit file" })
 
 -- Insert mode mappings (from vimrc)
