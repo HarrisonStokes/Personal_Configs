@@ -11,15 +11,16 @@ A feature-rich, beginner-friendly Neovim configuration built with Lua and manage
 - **File Navigation**: Fuzzy finding and file tree explorer
 - **Git Integration**: Visual git status, blame, and hunk navigation
 - **Auto-completion**: Intelligent code completion with snippets
+- **Live Server**: Built-in live server for web development with auto-reload
 - **Modern UI**: Beautiful status line and color scheme
 
 ## 📋 Prerequisites
 
 - **Neovim 0.9.0+** (recommended: latest stable version)
 - **Git** (for plugin management)
+- **Node.js** (for LSP servers and live server functionality)
 - **A Nerd Font** (for icons) - Download from [Nerd Fonts](https://www.nerdfonts.com/)
 - **ripgrep** (for live grep in Telescope): `brew install ripgrep` or equivalent
-- **Node.js** (for some LSP servers)
 
 ## 🛠 Installation
 
@@ -61,6 +62,9 @@ This configuration comes pre-configured with LSP support for:
 - **Verilog** (treesitter only)
 - **JSON, YAML, Markdown** (treesitter + basic support)
 
+### Web Development Features
+- **Live Server**: Automatically serves your HTML files and refreshes the browser when you save changes (perfect for frontend development)
+
 ## ⌨️ Key Mappings
 
 ### Leader Key
@@ -87,8 +91,16 @@ This configuration comes pre-configured with LSP support for:
 | Key | Mode | Action |
 |-----|------|--------|
 | `<leader>w` | Normal | Save file |
-| `<leader>q` | Normal | Quit |
+| `<leader>q` | Normal | Force quit |
 | `<leader>z` | Normal | Save and quit |
+
+### Web Development (Live Server)
+| Key | Mode | Action |
+|-----|------|--------|
+| `<leader>ls` | Normal | Start live server |
+| `<leader>lq` | Normal | Stop live server |
+| `<leader>lr` | Normal | Toggle live server |
+| `<leader>lt` | Normal | Toggle live server (alternative) |
 
 ### File Explorer (nvim-tree)
 | Key | Mode | Action |
@@ -196,6 +208,7 @@ This configuration comes pre-configured with LSP support for:
 - **nvim-autopairs**: Automatically pairs brackets, quotes, etc.
 - **todo-comments.nvim**: Highlights and navigates TODO, FIXME, etc. comments
 - **lsp_lines.nvim**: Enhanced diagnostic display
+- **live-server-nvim**: Development server with live reload for web development
 
 ## 🎨 Customization
 
@@ -225,6 +238,25 @@ Edit `lua/config/keymaps.lua` to change or add key mappings.
    }
    ```
 
+## 🌐 Web Development Workflow
+
+This configuration includes a built-in live server that makes web development seamless:
+
+### Live Server Features
+- **Auto-reload**: Automatically refreshes your browser when you save HTML, CSS, or JS files
+- **Port 8080**: Serves your files on `http://localhost:8080`
+- **Folder serving**: Serves the current working directory
+- **Easy controls**: Simple keybindings to start, stop, and toggle the server
+
+### Using Live Server
+1. Open your HTML project in Neovim
+2. Press `<leader>ls` to start the live server
+3. Your default browser will open to `http://localhost:8080`
+4. Edit and save your files - the browser will automatically refresh!
+5. Press `<leader>lq` to stop the server when done
+
+This is perfect for frontend development, testing responsive designs, or any web project where you want instant feedback.
+
 ## 📁 Configuration Structure
 
 ```
@@ -241,6 +273,7 @@ Edit `lua/config/keymaps.lua` to change or add key mappings.
 │       ├── colorscheme.lua # Color scheme
 │       ├── gitsigns.lua   # Git integration
 │       ├── improve-comments.lua # TODO comments
+│       ├── live-server.lua # Live server for web dev
 │       ├── lsp.lua        # Language servers
 │       ├── lsp-virtual-text.lua # Diagnostic display
 │       ├── lualine.lua    # Status line
@@ -273,6 +306,7 @@ Edit `lua/config/keymaps.lua` to change or add key mappings.
 4. **Search content**: Use `<leader>fg` to search within files
 5. **Learn LSP features**: Hover over variables with `K`, go to definitions with `gd`
 6. **Use completion**: Start typing and use `<C-j>`/`<C-k>` to navigate suggestions
+7. **Web development**: Open an HTML file and use `<leader>ls` to start the live server for instant preview
 
 ## 📚 Learning Resources
 
