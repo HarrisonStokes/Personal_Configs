@@ -3,21 +3,15 @@
 # Cross-Platform NeoVim Installation Script
 # Supports: Linux, macOS, Windows (WSL/MSYS2/Cygwin), FreeBSD
 
-set -e
-
 # Color definitions
 if [[ -t 1 ]]; then
-    boldGreenFg="\033[1;32m"
-    boldRedFg="\033[1;31m"
-    boldYellowFg="\033[1;33m"
-    boldBlueFg="\033[1;34m"
-    reset="\033[0m"
+    readonly GREEN="\033[1;32m"
+    readonly RED="\033[1;31m"
+    readonly YELLOW="\033[1;33m"
+    readonly BLUE="\033[1;34m"
+    readonly RESET="\033[0m"
 else
-    boldGreenFg=""
-    boldRedFg=""
-    boldYellowFg=""
-    boldBlueFg=""
-    reset=""
+    readonly GREEN="" RED="" YELLOW="" BLUE="" RESET=""
 fi
 
 # Global variables
@@ -25,84 +19,71 @@ OS=""
 ARCH=""
 SHELL_NAME=""
 PACKAGE_MANAGER=""
-NVIM_VERSION="v0.11.2"
+NVIM_VERSION="stable"
 INSTALL_DIR=""
 BIN_DIR=""
 CONFIG_DIR=""
+TEMP_DIRS=()
+INSTALLED_PACKAGES=()
 
 # Utility functions
-log_info() {
-    echo -e "${boldBlueFg}[INFO]${reset} $1"
+log_info() { echo -e "${BLUE}[INFO]${RESET} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${RESET} $1"; }
+log_warn() { echo -e "${YELLOW}[WARNING]${RESET} $1"; }
+log_error() { echo -e "${RED}[ERROR]${RESET} $1"; }
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+cleanup() {
+    local exit_code=$?
+    for temp_dir in "${TEMP_DIRS[@]}"; do
+        [[ -d "$temp_dir" ]] && rm -rf "$temp_dir"
+    done
+    
+    # Remove packages that were installed by this script
+    if [[ ${#INSTALLED_PACKAGES[@]} -gt 0 ]]; then
+        log_info "Cleaning up installed packages..."
+        for package in "${INSTALLED_PACKAGES[@]}"; do
+            remove_package "$package" || log_warn "Failed to remove $package"
+        done
+    fi
+    
+    exit $exit_code
 }
 
-log_success() {
-    echo -e "${boldGreenFg}[SUCCESS]${reset} $1"
+create_temp_dir() {
+    local temp_dir
+    temp_dir=$(mktemp -d -t nvim_install.XXXXXX)
+    TEMP_DIRS+=("$temp_dir")
+    echo "$temp_dir"
 }
 
-log_warning() {
-    echo -e "${boldYellowFg}[WARNING]${reset} $1"
-}
-
-log_error() {
-    echo -e "${boldRedFg}[ERROR]${reset} $1"
-}
-
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-detect_os() {
+detect_system() {
+    # Detect OS
     case "$(uname -s)" in
         Linux*)
-            if [[ -f /proc/version ]] && grep -qi Microsoft /proc/version; then
-                OS="WSL"
-            elif [[ -f /proc/sys/kernel/osrelease ]] && grep -qi microsoft /proc/sys/kernel/osrelease; then
-                OS="WSL"
-            elif [[ -d /run/WSL ]]; then
-                OS="WSL"
-            elif [[ -n "$WSLENV" ]]; then
+            if [[ -n "$WSL_DISTRO_NAME" ]] || [[ -n "$WSLENV" ]] || [[ -f /proc/version && $(grep -i microsoft /proc/version) ]]; then
                 OS="WSL"
             else
                 OS="Linux"
-            fi            ;;
-        Darwin*)
-            OS="macOS"
+            fi
             ;;
-        CYGWIN*|MINGW*|MSYS*)
-            OS="Windows"
-            ;;
-        FreeBSD*)
-            OS="FreeBSD"
-            ;;
-        *)
-            OS="Unknown"
-            ;;
+        Darwin*) OS="macOS" ;;
+        CYGWIN*|MINGW*|MSYS*) OS="Windows" ;;
+        FreeBSD*) OS="FreeBSD" ;;
+        *) OS="Unknown" ;;
     esac
-    log_info "Detected OS: $OS"
-}
-
-detect_arch() {
+    
+    # Detect architecture
     case "$(uname -m)" in
-        x86_64|amd64)
-            ARCH="x86_64"
-            ;;
-        arm64|aarch64)
-            ARCH="arm64"
-            ;;
-        armv7l)
-            ARCH="armv7"
-            ;;
-        i386|i686)
-            ARCH="i386"
-            ;;
-        *)
-            ARCH="unknown"
-            ;;
+        x86_64|amd64) ARCH="x86_64" ;;
+        arm64|aarch64) ARCH="arm64" ;;
+        armv7l) ARCH="armv7" ;;
+        i386|i686) ARCH="i386" ;;
+        *) ARCH="unknown" ;;
     esac
-    log_info "Detected architecture: $ARCH"
-}
-
-detect_shell() {
+    
+    # Detect shell
     if [[ -n "$ZSH_VERSION" ]]; then
         SHELL_NAME="zsh"
     elif [[ -n "$BASH_VERSION" ]]; then
@@ -110,48 +91,34 @@ detect_shell() {
     elif [[ -n "$FISH_VERSION" ]]; then
         SHELL_NAME="fish"
     else
-        SHELL_NAME=$(basename "$SHELL" 2>/dev/null || echo "unknown")
+        SHELL_NAME=$(basename "$SHELL" 2>/dev/null || echo "bash")
     fi
-    log_info "Detected shell: $SHELL_NAME"
-}
-
-detect_package_manager() {
-    if command_exists apt; then
-        PACKAGE_MANAGER="apt"
-    elif command_exists brew; then
-        PACKAGE_MANAGER="brew"
-    elif command_exists dnf; then
-        PACKAGE_MANAGER="dnf"
-    elif command_exists yum; then
-        PACKAGE_MANAGER="yum"
-    elif command_exists pacman; then
-        PACKAGE_MANAGER="pacman"
-    elif command_exists zypper; then
-        PACKAGE_MANAGER="zypper"
-    elif command_exists apk; then
-        PACKAGE_MANAGER="apk"
-    elif command_exists pkg && [[ "$OS" == "FreeBSD" ]]; then
-        PACKAGE_MANAGER="pkg"
-    elif command_exists choco; then
-        PACKAGE_MANAGER="choco"
-    elif command_exists scoop; then
-        PACKAGE_MANAGER="scoop"
-    elif command_exists winget; then
-        PACKAGE_MANAGER="winget"
-    else
-        PACKAGE_MANAGER="none"
-    fi
-    log_info "Detected package manager: $PACKAGE_MANAGER"
+    
+    # Detect package manager
+    local managers=("apt" "brew" "dnf" "yum" "pacman" "zypper" "apk" "pkg" "choco" "scoop" "winget")
+    for mgr in "${managers[@]}"; do
+        if command_exists "$mgr"; then
+            [[ "$mgr" == "pkg" && "$OS" != "FreeBSD" ]] && continue
+            PACKAGE_MANAGER="$mgr"
+            break
+        fi
+    done
+    [[ -z "$PACKAGE_MANAGER" ]] && PACKAGE_MANAGER="none"
+    
+    log_info "Architecture: $ARCH"
+    log_info "OS: $OS"
+    log_info "Shell: $SHELL_NAME"
+    log_info "Package Manager: $PACKAGE_MANAGER"
 }
 
 set_directories() {
     case "$OS" in
-        "Linux"|"WSL"|"FreeBSD")
+        Linux|WSL|FreeBSD)
             INSTALL_DIR="/opt"
             BIN_DIR="/usr/local/bin"
             CONFIG_DIR="$HOME/.config"
             ;;
-        "macOS")
+        macOS)
             if [[ -d "/opt/homebrew" ]]; then
                 INSTALL_DIR="/opt/homebrew"
                 BIN_DIR="/opt/homebrew/bin"
@@ -161,269 +128,307 @@ set_directories() {
             fi
             CONFIG_DIR="$HOME/.config"
             ;;
-        "Windows")
+        Windows)
             INSTALL_DIR="$HOME/AppData/Local"
             BIN_DIR="$HOME/AppData/Local/bin"
             CONFIG_DIR="$HOME/AppData/Local"
             mkdir -p "$BIN_DIR"
             ;;
     esac
-    log_info "Install directory: $INSTALL_DIR"
-    log_info "Binary directory: $BIN_DIR"
-    log_info "Config directory: $CONFIG_DIR"
+}
+
+try_install_package() {
+    local package="$1"
+    local was_installed=false
+    
+    # Check if package is already installed
+    case "$PACKAGE_MANAGER" in
+        apt) dpkg -l "$package" &>/dev/null && was_installed=true ;;
+        dnf|yum) rpm -q "$package" &>/dev/null && was_installed=true ;;
+        pacman) pacman -Q "$package" &>/dev/null && was_installed=true ;;
+        brew) brew list "$package" &>/dev/null && was_installed=true ;;
+        pkg) pkg info "$package" &>/dev/null && was_installed=true ;;
+        *) was_installed=true ;; # Assume installed for other managers
+    esac
+    
+    if [[ "$was_installed" == "false" ]]; then
+        if install_package "$package"; then
+            INSTALLED_PACKAGES+=("$package")
+            return 0
+        fi
+        return 1
+    fi
+    return 0
 }
 
 install_package() {
-    local packages="$1"
-    
-    log_info "Installing package(s): $packages"
+    local package="$1"
     
     case "$PACKAGE_MANAGER" in
-        "apt")
-            sudo apt install -y $packages
+        apt)
+            sudo apt-get update -qq || true
+            sudo apt-get install -y "$package"
             ;;
-        "brew")
-            brew install $packages
+        brew) brew install "$package" ;;
+        dnf) sudo dnf install -y "$package" ;;
+        yum) sudo yum install -y "$package" ;;
+        pacman) sudo pacman -S --noconfirm "$package" ;;
+        zypper) sudo zypper install -y "$package" ;;
+        apk) sudo apk add "$package" ;;
+        pkg) sudo pkg install -y "$package" ;;
+        choco) choco install -y "$package" ;;
+        scoop) scoop install "$package" ;;
+        winget) winget install "$package" ;;
+        *) log_warn "No supported package manager found"; return 1 ;;
+    esac
+}
+
+remove_package() {
+    local package="$1"
+    
+    case "$PACKAGE_MANAGER" in
+        apt) sudo apt-get remove -y "$package" ;;
+        dnf) sudo dnf remove -y "$package" ;;
+        yum) sudo yum remove -y "$package" ;;
+        pacman) sudo pacman -R --noconfirm "$package" ;;
+        brew) brew uninstall "$package" ;;
+        pkg) sudo pkg delete -y "$package" ;;
+        *) return 0 ;;
+    esac
+}
+
+install_python_neovim() {
+    log_info "Installing Python neovim support..."
+    
+    case "$PACKAGE_MANAGER" in
+        apt)
+            if try_install_package "python3-neovim" || try_install_package "python3-pynvim"; then
+                return 0
+            fi
             ;;
-        "dnf")
-            sudo dnf install -y $packages
+        dnf|yum)
+            if try_install_package "python3-neovim" || try_install_package "python3-pynvim"; then
+                return 0
+            fi
             ;;
-        "yum")
-            sudo yum install -y $packages
+        pacman)
+            if try_install_package "python-neovim" || try_install_package "python-pynvim"; then
+                return 0
+            fi
             ;;
-        "pacman")
-            sudo pacman -S --noconfirm $packages
+        brew)
+            if try_install_package "python-neovim"; then
+                return 0
+            fi
             ;;
-        "zypper")
-            sudo zypper install -y $packages
-            ;;
-        "apk")
-            sudo apk add $packages
-            ;;
-        "pkg")
-            sudo pkg install -y $packages
-            ;;
-        "choco")
-            choco install -y $packages
-            ;;
-        "scoop")
-            scoop install $packages
-            ;;
-        "winget")
-            winget install $packages
-            ;;
-        *)
-            log_warning "No supported package manager found. Please install manually: $packages"
-            return 1
+        pkg)
+            if try_install_package "py39-neovim" || try_install_package "py39-pynvim"; then
+                return 0
+            fi
             ;;
     esac
+    
+    # Try pipx (recommended for externally-managed environments)
+    if command_exists pipx; then
+        if pipx install pynvim; then
+            log_success "Installed pynvim via pipx"
+            return 0
+        fi
+    elif command_exists pip3 && try_install_package "python3-pipx"; then
+        if pipx install pynvim; then
+            log_success "Installed pynvim via pipx"
+            return 0
+        fi
+    fi
+    
+    # Try user install as fallback
+    if command_exists pip3; then
+        if pip3 install --user --upgrade pynvim; then
+            log_success "Installed pynvim via pip3 --user"
+            return 0
+        fi
+    fi
+    
+    log_warn "Could not install Python neovim support. Install manually: pip3 install --user pynvim"
+}
+
+install_node_neovim() {
+    log_info "Installing Node.js neovim support..."
+    
+    if ! command_exists npm; then
+        return 0
+    fi
+    
+    if sudo npm install -g neovim 2>/dev/null; then
+        log_success "Installed neovim via npm (global)"
+        return 0
+    fi
+    
+    mkdir -p "$HOME/.local/lib"
+    if npm install --prefix "$HOME/.local" neovim; then
+        # Add to PATH if not already there
+        local npm_bin="$HOME/.local/bin"
+        if [[ ":$PATH:" != *":$npm_bin:"* ]]; then
+            export PATH="$npm_bin:$PATH"
+        fi
+        log_success "Installed neovim via npm (user-local)"
+        return 0
+    fi
+    
+    log_warn "Could not install Node.js neovim support. Install manually: npm install -g neovim"
+}
+
+ensure_dependencies() {
+    log_info "Ensuring required dependencies..."
+    
+    # Essential tools
+    local required=("curl" "git")
+    local optional=("unzip" "tar")
+    
+    for tool in "${required[@]}"; do
+        if ! command_exists "$tool"; then
+            try_install_package "$tool" || {
+                log_error "Failed to install required dependency: $tool"
+                return 1
+            }
+        fi
+    done
+    
+    for tool in "${optional[@]}"; do
+        command_exists "$tool" || try_install_package "$tool" || true
+    done
+    
+    # Development dependencies
+    local dev_packages=()
+    case "$PACKAGE_MANAGER" in
+        apt) dev_packages=("nodejs" "npm" "python3-pip" "python3-venv" "pipx" "ripgrep" "fd-find") ;;
+        brew) dev_packages=("node" "python" "pipx" "ripgrep" "fd") ;;
+        dnf|yum) dev_packages=("nodejs" "npm" "python3-pip" "python3-venv" "pipx" "ripgrep" "fd-find") ;;
+        pacman) dev_packages=("nodejs" "npm" "python-pip" "python-pipx" "ripgrep" "fd") ;;
+        pkg) dev_packages=("node" "py39-pip" "py39-pipx" "ripgrep" "fd-find") ;;
+    esac
+    
+    for package in "${dev_packages[@]}"; do
+        try_install_package "$package" || true
+    done
+    
+    # Install language support
+    install_python_neovim
+    install_node_neovim
 }
 
 clean_previous_installations() {
-    log_info "Cleaning previous NeoVim installations..."
+    log_info "Cleaning previous installations..."
     
-    case "$OS" in
-        "Linux"|"WSL"|"FreeBSD")
-            sudo rm -rf /opt/nvim* 2>/dev/null || true
-            sudo rm -f /usr/local/bin/nvim 2>/dev/null || true
-            sudo rm -f /usr/bin/nvim 2>/dev/null || true
-            ;;
-        "macOS")
-            sudo rm -rf /usr/local/nvim* 2>/dev/null || true
-            sudo rm -rf /opt/homebrew/nvim* 2>/dev/null || true
-            sudo rm -f /usr/local/bin/nvim 2>/dev/null || true
-            sudo rm -f /opt/homebrew/bin/nvim 2>/dev/null || true
-            ;;
-        "Windows")
-            rm -rf "$HOME/AppData/Local/nvim"* 2>/dev/null || true
-            rm -f "$BIN_DIR/nvim.exe" 2>/dev/null || true
-            ;;
-    esac
+    local paths_to_clean=(
+        "/opt/nvim*" "/usr/local/nvim*" "/opt/homebrew/nvim*"
+        "/usr/local/bin/nvim" "/usr/bin/nvim" "/opt/homebrew/bin/nvim"
+        "$HOME/AppData/Local/nvim*" "$BIN_DIR/nvim*"
+        "$CONFIG_DIR/nvim"
+    )
     
-    rm -rf "$CONFIG_DIR/nvim" 2>/dev/null || true
+    for path in "${paths_to_clean[@]}"; do
+        if [[ "$path" == *"/usr/"* ]] || [[ "$path" == *"/opt/"* ]]; then
+            sudo rm -rf $path 2>/dev/null || true
+        else
+            rm -rf $path 2>/dev/null || true
+        fi
+    done
 }
 
-install_dependencies() {
-    log_info "Installing dependencies..."
-    
-    case "$OS" in
-        "Linux"|"WSL")
-            case "$PACKAGE_MANAGER" in
-                "apt")
-                    install_package "git curl build-essential nodejs npm python3-pip ripgrep fd-find"
-                    ;;
-                "dnf"|"yum")
-                    install_package "git curl gcc gcc-c++ make nodejs npm python3-pip ripgrep fd-find"
-                    ;;
-                "pacman")
-                    install_package "git curl base-devel nodejs npm python-pip ripgrep fd"
-                    ;;
-                "zypper")
-                    install_package "git curl gcc gcc-c++ make nodejs npm python3-pip ripgrep fd"
-                    ;;
-                "apk")
-                    install_package "git curl build-base nodejs npm py3-pip ripgrep fd"
-                    ;;
-            esac
-            ;;
-        "macOS")
-            if [[ "$PACKAGE_MANAGER" == "brew" ]]; then
-                install_package "git curl node python ripgrep fd"
-            fi
-            ;;
-        "FreeBSD")
-            install_package "git curl node python3 py39-pip ripgrep fd-find"
-            ;;
-        "Windows")
-            case "$PACKAGE_MANAGER" in
-                "choco")
-                    install_package "git curl nodejs python ripgrep fd"
-                    ;;
-                "scoop")
-                    install_package "git curl nodejs python ripgrep fd"
-                    ;;
-                "winget")
-                    install_package "Git.Git Curl NodeJS.NodeJS Python.Python.3 BurntSushi.ripgrep sharkdp.fd"
-                    ;;
-            esac
-            ;;
-    esac
-    
-    # Install Node.js and Python packages
-    if command_exists npm; then
-        log_info "Installing Node.js neovim package..."
-        npm install -g neovim 2>/dev/null || log_warning "Failed to install Node.js neovim package"
-    fi
-    
-    if command_exists pip3; then
-        log_info "Installing Python neovim package..."
-        pip3 install --user --upgrade pynvim 2>/dev/null || log_warning "Failed to install Python neovim package"
-    elif command_exists pip; then
-        log_info "Installing Python neovim package..."
-        pip install --user --upgrade pynvim 2>/dev/null || log_warning "Failed to install Python neovim package"
-    fi
-}
-
-get_nvim_url() {
+get_nvim_download_url() {
     local base_url="https://github.com/neovim/neovim/releases/download/$NVIM_VERSION"
     
-    case "$OS" in
-        "Linux"|"WSL"|"FreeBSD")
-            case "$ARCH" in
-                "x86_64")
-                    echo "$base_url/nvim-linux-x86_64.tar.gz"
-                    ;;
-                "arm64")
-                    echo "$base_url/nvim-linux-arm64.tar.gz"
-                    ;;
-                *)
-                    echo ""
-                    ;;
-            esac
-            ;;
-        "macOS")
-            case "$ARCH" in
-                "x86_64")
-                    echo "$base_url/nvim-macos-x86_64.tar.gz"
-                    ;;
-                "arm64")
-                    echo "$base_url/nvim-macos-arm64.tar.gz"
-                    ;;
-                *)
-                    echo ""
-                    ;;
-            esac
-            ;;
-        "Windows")
-            echo "$base_url/nvim-win64.zip"
-            ;;
-        *)
-            echo ""
-            ;;
+    case "$OS-$ARCH" in
+        Linux-x86_64|WSL-x86_64|FreeBSD-x86_64) echo "$base_url/nvim-linux-x86_64.tar.gz" ;;
+        Linux-arm64|WSL-arm64|FreeBSD-arm64) echo "$base_url/nvim-linux-arm64.tar.gz" ;;
+        macOS-x86_64) echo "$base_url/nvim-macos-x86_64.tar.gz" ;;
+        macOS-arm64) echo "$base_url/nvim-macos-arm64.tar.gz" ;;
+        Windows-*) echo "$base_url/nvim-win64.zip" ;;
+        *) echo "" ;;
     esac
 }
 
 install_neovim() {
     log_info "Installing NeoVim $NVIM_VERSION..."
     
-    # Try package manager first for specific distributions
     case "$PACKAGE_MANAGER" in
-        "brew")
-            if brew install neovim; then
-                log_success "NeoVim installed via Homebrew"
+        brew|pacman|pkg)
+            if "$PACKAGE_MANAGER" install neovim && command_exists nvim; then
+                log_success "NeoVim installed via $PACKAGE_MANAGER"
                 return 0
             fi
             ;;
-        "pacman")
-            if sudo pacman -S --noconfirm neovim; then
-                log_success "NeoVim installed via pacman"
-                return 0
-            fi
-            ;;
-        "pkg")
-            if sudo pkg install -y neovim; then
-                log_success "NeoVim installed via pkg"
+        dnf|yum)
+            if sudo "$PACKAGE_MANAGER" install -y neovim && command_exists nvim; then
+                log_success "NeoVim installed via $PACKAGE_MANAGER"
                 return 0
             fi
             ;;
     esac
     
     # Manual installation
-    local download_url=$(get_nvim_url)
+    local download_url
+    download_url=$(get_nvim_download_url)
     
     if [[ -z "$download_url" ]]; then
-        log_error "No download URL available for OS: $OS, ARCH: $ARCH"
+        log_error "No download URL available for $OS-$ARCH"
         return 1
     fi
     
     log_info "Downloading from: $download_url"
     
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(create_temp_dir)
     cd "$temp_dir"
     
-    if ! curl -fsSL "$download_url" -o nvim_archive; then
+    # Download with fallback methods
+    local download_success=false
+    if command_exists curl; then
+        curl -fsSL "$download_url" -o nvim_archive && download_success=true
+    elif command_exists wget; then
+        wget -q "$download_url" -O nvim_archive && download_success=true
+    fi
+    
+    if [[ "$download_success" != "true" ]]; then
         log_error "Failed to download NeoVim"
         return 1
     fi
     
     # Extract archive
-    case "$download_url" in
-        *.tar.gz)
-            tar -xzf nvim_archive
-            ;;
-        *.zip)
-            if command_exists unzip; then
-                unzip -q nvim_archive
-            else
-                log_error "unzip not found. Please install unzip."
-                return 1
-            fi
-            ;;
-    esac
+    if [[ "$download_url" == *.tar.gz ]]; then
+        tar -xzf nvim_archive || { log_error "Failed to extract archive"; return 1; }
+    elif [[ "$download_url" == *.zip ]]; then
+        if command_exists unzip; then
+            unzip -q nvim_archive || { log_error "Failed to extract archive"; return 1; }
+        else
+            log_error "unzip not found"
+            return 1
+        fi
+    fi
     
-    # Find extracted directory
-    local extracted_dir=$(find . -maxdepth 1 -type d -name "*nvim*" | head -1)
+    # Find and install extracted directory
+    local extracted_dir
+    extracted_dir=$(find . -maxdepth 1 -type d -name "*nvim*" | head -1)
     
     if [[ -z "$extracted_dir" ]]; then
         log_error "Could not find extracted NeoVim directory"
         return 1
     fi
     
-    # Install NeoVim
     case "$OS" in
-        "Linux"|"WSL"|"FreeBSD"|"macOS")
+        Linux|WSL|FreeBSD|macOS)
             sudo cp -r "$extracted_dir" "$INSTALL_DIR/nvim"
             sudo ln -sf "$INSTALL_DIR/nvim/bin/nvim" "$BIN_DIR/nvim"
             sudo chmod +x "$BIN_DIR/nvim"
             ;;
-        "Windows")
+        Windows)
             cp -r "$extracted_dir" "$INSTALL_DIR/nvim"
             cp "$INSTALL_DIR/nvim/bin/nvim.exe" "$BIN_DIR/nvim.exe"
             ;;
     esac
     
     cd - >/dev/null
-    rm -rf "$temp_dir"
     
     if command_exists nvim; then
         log_success "NeoVim installed successfully!"
@@ -437,297 +442,177 @@ install_neovim() {
 configure_shell() {
     log_info "Configuring shell environment..."
     
-    local config_file=""
-    
+    local config_file
     case "$SHELL_NAME" in
-        "bash")
-            config_file="$HOME/.bashrc"
-            ;;
-        "zsh")
-            config_file="$HOME/.zshrc"
-            ;;
-        "fish")
+        bash) config_file="$HOME/.bashrc" ;;
+        zsh) config_file="$HOME/.zshrc" ;;
+        fish) 
             config_file="$HOME/.config/fish/config.fish"
             mkdir -p "$(dirname "$config_file")"
             ;;
-        *)
-            log_warning "Unknown shell: $SHELL_NAME. Skipping shell configuration."
+        *) 
+            log_warn "Unknown shell: $SHELL_NAME. Skipping configuration."
             return 0
             ;;
     esac
     
-    if [[ ! -f "$config_file" ]]; then
-        touch "$config_file"
-    fi
+    [[ ! -f "$config_file" ]] && touch "$config_file"
     
-    # Add aliases and environment variables
-    if ! grep -q "alias vim=nvim" "$config_file" 2>/dev/null; then
-        echo "" >> "$config_file"
-        echo "# NeoVim aliases and environment" >> "$config_file"
-        
-        if [[ "$SHELL_NAME" == "fish" ]]; then
-            echo "alias vim nvim" >> "$config_file"
-            echo "alias vi nvim" >> "$config_file"
-            echo "set -gx EDITOR nvim" >> "$config_file"
-            echo "set -gx VISUAL nvim" >> "$config_file"
-        else
-            echo "alias vim=nvim" >> "$config_file"
-            echo "alias vi=nvim" >> "$config_file"
-            echo "export EDITOR=nvim" >> "$config_file"
-            echo "export VISUAL=nvim" >> "$config_file"
-        fi
-        
-        # Add binary directory to PATH if needed
-        if [[ "$OS" == "Windows" ]] && [[ "$BIN_DIR" != "/usr/local/bin" ]]; then
+    if ! grep -q "alias vim=nvim\|alias vim nvim" "$config_file" 2>/dev/null; then
+        {
+            echo ""
+            echo "# NeoVim configuration"
             if [[ "$SHELL_NAME" == "fish" ]]; then
-                echo "set -gx PATH $BIN_DIR \$PATH" >> "$config_file"
+                echo "alias vim nvim"
+                echo "alias vi nvim"
+                echo "set -gx EDITOR nvim"
+                echo "set -gx VISUAL nvim"
+                [[ "$OS" == "Windows" ]] && echo "set -gx PATH $BIN_DIR \$PATH"
             else
-                echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$config_file"
+                echo "alias vim=nvim"
+                echo "alias vi=nvim"
+                echo "export EDITOR=nvim"
+                echo "export VISUAL=nvim"
+                [[ "$OS" == "Windows" ]] && echo "export PATH=\"$BIN_DIR:\$PATH\""
             fi
-        fi
+        } >> "$config_file"
         
-        log_success "Shell configuration updated. Run 'source $config_file' or restart your shell."
-    else
-        log_info "Shell configuration already exists."
+        log_success "Shell configuration updated"
     fi
 }
 
-install_nvim_config() {
+install_config() {
     log_info "Installing NeoVim configuration..."
     
     local repo_url="https://github.com/HarrisonStokes/Personal_Configs/archive/refs/heads/main.zip"
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(create_temp_dir)
     
     cd "$temp_dir"
     
-    if ! curl -fsSL "$repo_url" -o config.zip; then
-        log_warning "Failed to download configuration. Skipping..."
-        return 0
-    fi
-    
-    if command_exists unzip; then
+    if curl -fsSL "$repo_url" -o config.zip && command_exists unzip; then
         unzip -q config.zip
+        local extracted_dir
+        extracted_dir=$(find . -maxdepth 1 -type d -name "*Personal_Configs*" | head -1)
+        
+        if [[ -n "$extracted_dir" && -d "$extracted_dir/nvim" ]]; then
+            mkdir -p "$CONFIG_DIR"
+            cp -r "$extracted_dir/nvim" "$CONFIG_DIR/"
+            log_success "Configuration installed"
+        else
+            log_warn "Configuration not found in archive"
+        fi
     else
-        log_warning "unzip not found. Cannot extract configuration."
-        return 0
-    fi
-    
-    local extracted_dir=$(find . -maxdepth 1 -type d -name "*Personal_Configs*" | head -1)
-    
-    if [[ -n "$extracted_dir" ]] && [[ -d "$extracted_dir/nvim" ]]; then
-        mkdir -p "$CONFIG_DIR"
-        cp -r "$extracted_dir/nvim" "$CONFIG_DIR/"
-        log_success "NeoVim configuration installed"
-    else
-        log_warning "Configuration directory not found in archive"
+        log_warn "Failed to download or extract configuration"
     fi
     
     cd - >/dev/null
-    rm -rf "$temp_dir"
 }
 
-install_lsp_tools() {
-    log_info "Installing LSP servers and development tools..."
-    
-    case "$PACKAGE_MANAGER" in
-        "apt")
-            install_package "clangd rustc" 2>/dev/null || true
-            ;;
-        "brew")
-            install_package "llvm rust-analyzer" 2>/dev/null || true
-            ;;
-        "pacman")
-            install_package "clang rust-analyzer" 2>/dev/null || true
-            ;;
-        "dnf"|"yum")
-            install_package "clang rust" 2>/dev/null || true
-            ;;
-    esac
-    
-    if command_exists npm; then
-        log_info "Installing Node.js-based LSP servers..."
-        npm install -g typescript-language-server vscode-langservers-extracted 2>/dev/null || true
+install_font() {
+    confirm "Would you like to install JetBrains Mono Nerd Font" 
+    if [ "$?" -eq 1 ]; then
+        return
     fi
+    log_info "Installing JetBrains Mono Nerd Font..."
     
-    if command_exists pip3; then
-        log_info "Installing Python-based tools..."
-        pip3 install --user black flake8 mypy 2>/dev/null || true
-    fi
-}
-
-confirm_action() {
-    local action="$1"
-    local response
+    local font_dir="$HOME/.local/share/fonts"
+    mkdir -p "$font_dir"
     
-    while true; do
-        printf "Would you like to %s? (y/n): " "$action"
-        read -r response
+    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip"
+    local temp_dir
+    temp_dir=$(create_temp_dir)
+    
+    cd "$temp_dir"
+    
+    if curl -fsSL "$font_url" -o font.zip && command_exists unzip; then
+        unzip -q font.zip -d "$font_dir/"
+        command_exists fc-cache && fc-cache -fv &>/dev/null
+        log_success "Font installed"
         
+        if [[ "$OS" == "WSL" ]]; then
+            log_warn "WSL requires manual font installation on Windows side"
+            echo "1. Download $font_url onto your Windows file system."
+            echo "2. Extract zip."
+            echo "3. Select all .ttf files."
+            echo "4. Right-click → 'Install' or 'Install for all users'."
+            echo "5. Restart Terminal after script finishes."
+            echo "6. Apply any of the following fonts in WSL setting:"
+            echo "   * JetBrainsMono Nerd Font"
+            echo "   * JetBrainsMono NF"
+            echo "   * JetBrainsMonoNL Nerd Font"
+            echo "   * JetBrainsMonoNL NF"
+            confirm "Would you like to continue?" "(y)"
+        fi
+    else
+        log_warn "Font installation failed"
+    fi
+    
+    cd - >/dev/null
+}
+
+confirm() {
+    local prompt="$1"
+    local option=${2:-"(y/n)"}
+    local response
+
+    while true; do
+        read -rp "$prompt $option: " response
         case "$response" in
             [Yy]|[Yy][Ee][Ss])
-                return 0
+                return 0 
                 ;;
             [Nn]|[Nn][Oo])
                 return 1
                 ;;
-            *)
-                echo "Please answer yes (y) or no (n)."
-                ;;
+            *) echo "Please answer $option" ;;
         esac
     done
 }
 
-update_packages_for_manager() {
-    case "$PACKAGE_MANAGER" in
-        "apt")
-            sudo apt update && sudo apt upgrade -y
-            ;;
-        "dnf")
-            sudo dnf upgrade -y
-            ;;
-        "yum")
-            sudo yum update -y
-            ;;
-        "pacman")
-            sudo pacman -Syu --noconfirm
-            ;;
-        "zypper")
-            sudo zypper update -y
-            ;;
-        "apk")
-            sudo apk update && sudo apk upgrade
-            ;;
-        "brew")
-            brew update && brew upgrade
-            ;;
-        "pkg")
-            sudo pkg update && sudo pkg upgrade -y
-            ;;
-        "choco")
-            choco upgrade all -y
-            ;;
-        "scoop")
-            scoop update && scoop update *
-            ;;
-        "winget")
-            winget upgrade --all
-            ;;
-        *)
-            log_warning "Package manager '$PACKAGE_MANAGER' not supported for updates"
-            return 1
-            ;;
-    esac
-}
-
-install_font() {
-    log_info "Installing JetBrains Mono Nerd Font..."
-
-    mkdir -p ~/.local/share/fonts
-
-    local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip"
-
-    if command_exists wget; then
-        wget "$font_url" -O JetBrainsMono.zip -q --show-progress
-    elif command_exists curl; then
-        curl -fsSL "$font_url" -o JetBrainsMono.zip
-    else
-        log_warning "Neither wget nor curl found. Skipping font installation."
-        return 1
-    fi
-
-    if [[ $? -eq 0 ]]; then
-        if command_exists unzip; then
-            unzip -q JetBrainsMono.zip -d ~/.local/share/fonts/
-            if command_exists fc-cache; then
-                fc-cache -fv &> /dev/null
-            fi
-            rm JetBrainsMono.zip
-            log_success "Font installed successfully!"
-        else
-            log_warning "unzip not found. Cannot extract font."
-            rm JetBrainsMono.zip
-        fi
-    else
-        log_warning "Font download failed. Icons may not display correctly."
-    fi
-
-    if [[ "$OS" == "WSL" ]]; then
-        log_warning "WSL needs you to perform extra step for fonts."
-        echo "1. Download $font_url onto your Windows file system."
-        echo "2. Extract zip."
-        echo "3. Select all .ttf files."
-        echo "4. Right-click → 'Install' or 'Install for all users'."
-        echo "5. Restart Terminal after script finishes."
-        echo "6. Apply any of the following fonts in WSL setting:"
-        echo "   * JetBrainsMono Nerd Font"
-        echo "   * JetBrainsMono NF"
-        echo "   * JetBrainsMonoNL Nerd Font"
-        echo "   * JetBrainsMonoNL NF"
-        confirm_action "continue"
-    fi
-
-    log_info "Configure your terminal to use 'JetBrainsMono Nerd Font'"
-}
-
 main() {
+    trap cleanup EXIT INT TERM
+    
     echo "=================================="
     echo "         NeoVim Installer         "
     echo "=================================="
-    echo ""
+    echo
     
-    detect_os
-    detect_arch
-    detect_shell
-    detect_package_manager
+    detect_system
     set_directories
     
-    if [[ "$OS" == "Unknown" ]] || [[ "$ARCH" == "unknown" ]]; then
-        log_error "Unsupported OS ($OS) or architecture ($ARCH)"
+    if [[ "$OS" == "Unknown" || "$ARCH" == "unknown" ]]; then
+        log_error "Unsupported system: $OS-$ARCH"
         exit 1
     fi
     
-    echo ""
     log_info "Starting installation process..."
-    echo ""
+    echo
     
     clean_previous_installations
-    
-    if confirm_action "update and upgrade packages"; then
-        log_info "Updating and upgrading packages..."
-        update_packages_for_manager
-    else
-        log_info "Skipping package updates"
-    fi
-    
-    install_dependencies
+    ensure_dependencies
     install_font
     install_neovim
     configure_shell
-    install_nvim_config
-    install_lsp_tools
+    install_config
     
-    echo ""
+    echo
     echo "=================================="
     log_success "Installation complete!"
     echo "=================================="
-    echo ""
+    echo
     echo "Next steps:"
-    echo "1. Restart your shell or run: source ~/.bashrc (or ~/.zshrc)"
+    echo "1. Restart your shell or run: source ~/.${SHELL_NAME}rc"
     echo "2. Run 'nvim' to start NeoVim"
-    echo "3. Let plugins install automatically on first run"
-    echo "4. Run ':checkhealth' in NeoVim to verify everything works"
-    echo ""
+    echo "3. Run ':checkhealth' in NeoVim to verify setup"
+    echo
     
     if command_exists nvim; then
-        echo "NeoVim version:"
         nvim --version | head -3
-        echo ""
-        
-        if confirm_action "start NeoVim now"; then
-            exec nvim
-        fi
+        echo
+        confirm "Start NeoVim now?" && exec nvim
     else
-        log_warning "NeoVim command not found in PATH. You may need to restart your shell."
+        log_warn "NeoVim not found in PATH. Restart your shell."
     fi
 }
 
