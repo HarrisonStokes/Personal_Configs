@@ -40,11 +40,9 @@ format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
 
-[directory.substitutions]
-"Documents" = "󰈙 "
-"Downloads" = " "
-"Music" = " "
-"Pictures" = " "
+[character]
+success_symbol = "[     󱞪](#fce100)"
+error_symbol = "[❯](red)"
 
 [aws]
 symbol = "  "
