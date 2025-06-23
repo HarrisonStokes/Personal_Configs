@@ -1,0 +1,173 @@
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"               ██║   ██║██║████╗ ████║██╔══██╗██╔════╝
+"               ██║   ██║██║██╔████╔██║██████╔╝██║     
+"               ╚██╗ ██╔╝██║██║╚██╔╝██║██╔══██╗██║     
+"                ╚████╔╝ ██║██║ ╚═╝ ██║██║  ██║╚██████╗
+"                 ╚═══╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Optimized Vim Configuration
+" Packages required: vim-plug
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" ===== PERFORMANCE OPTIMIZATIONS =====
+set nocompatible
+syntax on
+filetype plugin indent on
+set lazyredraw
+set ttyfast
+set regexpengine=1
+
+" ===== BASIC SETTINGS =====
+set encoding=utf-8
+set fileencoding=utf-8
+set backspace=indent,eol,start
+set hidden
+set autowrite
+set wildmenu
+set wildmode=list:longest
+set wildignore=*.o,*.a,*.class,*.swp,*.swo,*.swn,*.pyc,*.pyo
+set history=1000
+set undolevels=1000
+
+" ===== DISPLAY =====
+set number relativenumber
+set showmatch
+set scrolloff=10
+set sidescrolloff=8
+set termguicolors
+set t_Co=256
+set laststatus=2
+set showtabline=2
+set showmode
+set showcmd
+set cmdheight=2
+
+" ===== SEARCH =====
+set hlsearch
+set incsearch
+set ignorecase
+set smartcase
+
+" ===== INDENTATION =====
+set tabstop=4
+set shiftwidth=4
+set autoindent
+set smartindent
+set smarttab
+
+" ===== FILES =====
+set nobackup
+set noswapfile
+
+" ===== VISUAL =====
+set linebreak
+set showbreak=↪
+set list
+set listchars=tab:▸\ ,trail:·,extends:❯,precedes:❮,nbsp:␣
+set foldmethod=syntax
+set foldlevelstart=99
+
+" ===== SPLITS =====
+set splitright
+set splitbelow
+set equalalways
+
+" ===== COMPLETION =====
+set completeopt=menuone,noinsert,noselect
+set shortmess+=c
+set timeoutlen=500
+set updatetime=300
+
+" ===== KEY MAPPINGS =====
+let mapleader = "\\"
+
+" Normal mode mappings
+nnoremap <leader>\ ''
+nnoremap <C-c> :noh<CR>
+nnoremap <space> :
+nnoremap n nzz
+nnoremap N Nzz
+nnoremap Y y$
+
+" Center screen on page movements
+nnoremap <C-d> <C-d>zz
+nnoremap <C-u> <C-u>zz
+nnoremap <C-f> <C-f>zz
+nnoremap <C-b> <C-b>zz
+
+" Window navigation
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" NERDTree toggle
+nnoremap <C-t> :NERDTreeToggle<CR>
+
+" Insert mode - simplified for performance
+inoremap <C-c> <C-o>:noh<CR>
+
+" ===== PLUGINS =====
+call plug#begin('~/.vim/plugged')
+    " UI Enhancement
+    Plug 'vim-airline/vim-airline'
+    Plug 'vim-airline/vim-airline-themes'
+    
+    " Git Integration
+    Plug 'airblade/vim-gitgutter'
+    Plug 'tpope/vim-fugitive'
+    
+    " Development Tools
+    Plug 'ycm-core/YouCompleteMe'
+    Plug 'jiangmiao/auto-pairs'
+    Plug 'dense-analysis/ale'
+    
+    " File Management
+    Plug 'preservim/nerdtree'
+    
+    " Syntax & Assembly
+    Plug 'Shirk/vim-gas'
+    
+    " Theme
+    Plug 'ghifarit53/tokyonight-vim'
+call plug#end()
+
+" ===== THEME =====
+colorscheme tokyonight
+
+" ===== PLUGIN CONFIGURATION =====
+
+" Airline
+let g:airline_theme = 'tokyonight'
+let g:airline#extensions#branch#enabled = 1
+let g:airline#extensions#tabline#enabled = 1
+let g:airline#extensions#tabline#show_tab_nr = 1
+let g:airline#extensions#tabline#tab_nr_type = 1
+let g:airline#extensions#tabline#left_sep = ' '
+let g:airline#extensions#tabline#left_alt_sep = '|'
+
+" YouCompleteMe
+let g:ycm_use_clangd = 1
+let g:ycm_auto_trigger = 1
+let g:ale_completion_enabled = 1
+
+" GitGutter
+let g:gitgutter_enabled = 1
+let g:gitgutter_sign_added = '▶'
+let g:gitgutter_sign_modified = '✎'
+let g:gitgutter_sign_removed = '✗'
+
+" NERDTree
+let NERDTreeIgnore = ['\.pyc$', '\.pyo$', '\.o$', '\.swp$']
+
+" ===== AUTOCOMMANDS =====
+augroup FileTypeDetection
+    autocmd!
+    autocmd BufRead,BufNewFile ECE178/*.s setfiletype nios2
+augroup END
+
+" ===== PERFORMANCE TWEAKS =====
+set synmaxcol=200
+set nocursorline
+set nocursorcolumn
+set norelativenumber
