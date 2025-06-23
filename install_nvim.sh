@@ -39,7 +39,7 @@ cleanup() {
     for temp_dir in "${TEMP_DIRS[@]}"; do
         [[ -d "$temp_dir" ]] && rm -rf "$temp_dir"
     done
-    
+
     # Remove packages that were installed by this script
     if [[ ${#INSTALLED_PACKAGES[@]} -gt 0 ]]; then
         log_info "Cleaning up installed packages..."
@@ -47,7 +47,7 @@ cleanup() {
             remove_package "$package" || log_warn "Failed to remove $package"
         done
     fi
-    
+
     exit $exit_code
 }
 
@@ -73,7 +73,7 @@ detect_system() {
         FreeBSD*) OS="FreeBSD" ;;
         *) OS="Unknown" ;;
     esac
-    
+
     # Detect architecture
     case "$(uname -m)" in
         x86_64|amd64) ARCH="x86_64" ;;
@@ -82,7 +82,7 @@ detect_system() {
         i386|i686) ARCH="i386" ;;
         *) ARCH="unknown" ;;
     esac
-    
+
     # Detect shell
     if [[ -n "$ZSH_VERSION" ]]; then
         SHELL_NAME="zsh"
@@ -93,7 +93,7 @@ detect_system() {
     else
         SHELL_NAME=$(basename "$SHELL" 2>/dev/null || echo "bash")
     fi
-    
+
     # Detect package manager
     local managers=("apt" "brew" "dnf" "yum" "pacman" "zypper" "apk" "pkg" "choco" "scoop" "winget")
     for mgr in "${managers[@]}"; do
@@ -104,7 +104,7 @@ detect_system() {
         fi
     done
     [[ -z "$PACKAGE_MANAGER" ]] && PACKAGE_MANAGER="none"
-    
+
     log_info "Architecture: $ARCH"
     log_info "OS: $OS"
     log_info "Shell: $SHELL_NAME"
@@ -140,7 +140,7 @@ set_directories() {
 try_install_package() {
     local package="$1"
     local was_installed=false
-    
+
     # Check if package is already installed
     case "$PACKAGE_MANAGER" in
         apt) dpkg -l "$package" &>/dev/null && was_installed=true ;;
@@ -150,7 +150,7 @@ try_install_package() {
         pkg) pkg info "$package" &>/dev/null && was_installed=true ;;
         *) was_installed=true ;; # Assume installed for other managers
     esac
-    
+
     if [[ "$was_installed" == "false" ]]; then
         if install_package "$package"; then
             INSTALLED_PACKAGES+=("$package")
@@ -163,7 +163,7 @@ try_install_package() {
 
 install_package() {
     local package="$1"
-    
+
     case "$PACKAGE_MANAGER" in
         apt)
             sudo apt-get update -qq || true
@@ -185,7 +185,7 @@ install_package() {
 
 remove_package() {
     local package="$1"
-    
+
     case "$PACKAGE_MANAGER" in
         apt) sudo apt-get remove -y "$package" ;;
         dnf) sudo dnf remove -y "$package" ;;
@@ -199,7 +199,7 @@ remove_package() {
 
 install_python_neovim() {
     log_info "Installing Python neovim support..."
-    
+
     case "$PACKAGE_MANAGER" in
         apt)
             if try_install_package "python3-neovim" || try_install_package "python3-pynvim"; then
@@ -227,7 +227,7 @@ install_python_neovim() {
             fi
             ;;
     esac
-    
+
     # Try pipx (recommended for externally-managed environments)
     if command_exists pipx; then
         if pipx install pynvim; then
@@ -240,7 +240,7 @@ install_python_neovim() {
             return 0
         fi
     fi
-    
+
     # Try user install as fallback
     if command_exists pip3; then
         if pip3 install --user --upgrade pynvim; then
@@ -248,22 +248,22 @@ install_python_neovim() {
             return 0
         fi
     fi
-    
+
     log_warn "Could not install Python neovim support. Install manually: pip3 install --user pynvim"
 }
 
 install_node_neovim() {
     log_info "Installing Node.js neovim support..."
-    
+
     if ! command_exists npm; then
         return 0
     fi
-    
+
     if sudo npm install -g neovim 2>/dev/null; then
         log_success "Installed neovim via npm (global)"
         return 0
     fi
-    
+
     mkdir -p "$HOME/.local/lib"
     if npm install --prefix "$HOME/.local" neovim; then
         # Add to PATH if not already there
@@ -274,30 +274,30 @@ install_node_neovim() {
         log_success "Installed neovim via npm (user-local)"
         return 0
     fi
-    
+
     log_warn "Could not install Node.js neovim support. Install manually: npm install -g neovim"
 }
 
 ensure_dependencies() {
     log_info "Ensuring required dependencies..."
-    
+
     # Essential tools
     local required=("curl" "git")
     local optional=("unzip" "tar")
-    
+
     for tool in "${required[@]}"; do
         if ! command_exists "$tool"; then
             try_install_package "$tool" || {
                 log_error "Failed to install required dependency: $tool"
-                return 1
-            }
+                            return 1
+                        }
         fi
     done
-    
+
     for tool in "${optional[@]}"; do
         command_exists "$tool" || try_install_package "$tool" || true
     done
-    
+
     # Development dependencies
     local dev_packages=()
     case "$PACKAGE_MANAGER" in
@@ -307,11 +307,40 @@ ensure_dependencies() {
         pacman) dev_packages=("nodejs" "npm" "python-pip" "python-pipx" "ripgrep" "fd") ;;
         pkg) dev_packages=("node" "py39-pip" "py39-pipx" "ripgrep" "fd-find") ;;
     esac
-    
+
     for package in "${dev_packages[@]}"; do
         try_install_package "$package" || true
     done
+
+    # Verify Node.js and npm
+    if ! command_exists node || ! command_exists npm; then
+        log_warn "Node.js or npm not found. Attempting to install via nvm..."
+        if ! command_exists nvm; then
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        fi
+        nvm install --lts
+        nvm use --lts
+        if ! command_exists npm; then
+            log_error "Failed to install npm. Please install Node.js manually."
+            return 1
+        fi
+    fi
+ 
+    # Update npm to the latest version
+    log_info "Updating npm to the latest version..."
+    if npm install -g npm@latest; then
+        log_success "Updated npm to the latest version: $(npm --version)"
+    else
+        log_warn "Failed to update npm. Continuing with current version: $(npm --version)"
+    fi
     
+    # Verify npm is functional
+    npm --version >/dev/null 2>&1 || {
+        log_error "npm is installed but not functional. Please check your Node.js installation."
+        return 1
+    }
     # Install language support
     install_python_neovim
     install_node_neovim
@@ -319,14 +348,14 @@ ensure_dependencies() {
 
 clean_previous_installations() {
     log_info "Cleaning previous installations..."
-    
+
     local paths_to_clean=(
         "/opt/nvim*" "/usr/local/nvim*" "/opt/homebrew/nvim*"
         "/usr/local/bin/nvim" "/usr/bin/nvim" "/opt/homebrew/bin/nvim"
         "$HOME/AppData/Local/nvim*" "$BIN_DIR/nvim*"
         "$CONFIG_DIR/nvim"
     )
-    
+
     for path in "${paths_to_clean[@]}"; do
         if [[ "$path" == *"/usr/"* ]] || [[ "$path" == *"/opt/"* ]]; then
             sudo rm -rf $path 2>/dev/null || true
@@ -338,7 +367,7 @@ clean_previous_installations() {
 
 get_nvim_download_url() {
     local base_url="https://github.com/neovim/neovim/releases/download/$NVIM_VERSION"
-    
+
     case "$OS-$ARCH" in
         Linux-x86_64|WSL-x86_64|FreeBSD-x86_64) echo "$base_url/nvim-linux-x86_64.tar.gz" ;;
         Linux-arm64|WSL-arm64|FreeBSD-arm64) echo "$base_url/nvim-linux-arm64.tar.gz" ;;
@@ -351,7 +380,7 @@ get_nvim_download_url() {
 
 install_neovim() {
     log_info "Installing NeoVim $NVIM_VERSION..."
-    
+
     case "$PACKAGE_MANAGER" in
         brew|pacman|pkg)
             if "$PACKAGE_MANAGER" install neovim && command_exists nvim; then
@@ -366,22 +395,22 @@ install_neovim() {
             fi
             ;;
     esac
-    
+
     # Manual installation
     local download_url
     download_url=$(get_nvim_download_url)
-    
+
     if [[ -z "$download_url" ]]; then
         log_error "No download URL available for $OS-$ARCH"
         return 1
     fi
-    
+
     log_info "Downloading from: $download_url"
-    
+
     local temp_dir
     temp_dir=$(create_temp_dir)
     cd "$temp_dir"
-    
+
     # Download with fallback methods
     local download_success=false
     if command_exists curl; then
@@ -389,12 +418,12 @@ install_neovim() {
     elif command_exists wget; then
         wget -q "$download_url" -O nvim_archive && download_success=true
     fi
-    
+
     if [[ "$download_success" != "true" ]]; then
         log_error "Failed to download NeoVim"
         return 1
     fi
-    
+
     # Extract archive
     if [[ "$download_url" == *.tar.gz ]]; then
         tar -xzf nvim_archive || { log_error "Failed to extract archive"; return 1; }
@@ -406,16 +435,16 @@ install_neovim() {
             return 1
         fi
     fi
-    
+
     # Find and install extracted directory
     local extracted_dir
     extracted_dir=$(find . -maxdepth 1 -type d -name "*nvim*" | head -1)
-    
+
     if [[ -z "$extracted_dir" ]]; then
         log_error "Could not find extracted NeoVim directory"
         return 1
     fi
-    
+
     case "$OS" in
         Linux|WSL|FreeBSD|macOS)
             sudo cp -r "$extracted_dir" "$INSTALL_DIR/nvim"
@@ -427,9 +456,9 @@ install_neovim() {
             cp "$INSTALL_DIR/nvim/bin/nvim.exe" "$BIN_DIR/nvim.exe"
             ;;
     esac
-    
+
     cd - >/dev/null
-    
+
     if command_exists nvim; then
         log_success "NeoVim installed successfully!"
         nvim --version | head -1
@@ -441,7 +470,7 @@ install_neovim() {
 
 configure_shell() {
     log_info "Configuring shell environment..."
-    
+
     local config_file
     case "$SHELL_NAME" in
         bash) config_file="$HOME/.bashrc" ;;
@@ -455,9 +484,9 @@ configure_shell() {
             return 0
             ;;
     esac
-    
+
     [[ ! -f "$config_file" ]] && touch "$config_file"
-    
+
     if ! grep -q "alias vim=nvim\|alias vim nvim" "$config_file" 2>/dev/null; then
         {
             echo ""
@@ -476,25 +505,25 @@ configure_shell() {
                 [[ "$OS" == "Windows" ]] && echo "export PATH=\"$BIN_DIR:\$PATH\""
             fi
         } >> "$config_file"
-        
-        log_success "Shell configuration updated"
+
+    log_success "Shell configuration updated"
     fi
 }
 
 install_config() {
     log_info "Installing NeoVim configuration..."
-    
+
     local repo_url="https://github.com/HarrisonStokes/Personal_Configs/archive/refs/heads/main.zip"
     local temp_dir
     temp_dir=$(create_temp_dir)
-    
+
     cd "$temp_dir"
-    
+
     if curl -fsSL "$repo_url" -o config.zip && command_exists unzip; then
         unzip -q config.zip
         local extracted_dir
         extracted_dir=$(find . -maxdepth 1 -type d -name "*Personal_Configs*" | head -1)
-        
+
         if [[ -n "$extracted_dir" && -d "$extracted_dir/nvim" ]]; then
             mkdir -p "$CONFIG_DIR"
             cp -r "$extracted_dir/nvim" "$CONFIG_DIR/"
@@ -505,7 +534,7 @@ install_config() {
     else
         log_warn "Failed to download or extract configuration"
     fi
-    
+
     cd - >/dev/null
 }
 
@@ -515,21 +544,21 @@ install_font() {
         return
     fi
     log_info "Installing JetBrains Mono Nerd Font..."
-    
+
     local font_dir="$HOME/.local/share/fonts"
     mkdir -p "$font_dir"
-    
+
     local font_url="https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip"
     local temp_dir
     temp_dir=$(create_temp_dir)
-    
+
     cd "$temp_dir"
-    
+
     if curl -fsSL "$font_url" -o font.zip && command_exists unzip; then
         unzip -q font.zip -d "$font_dir/"
         command_exists fc-cache && fc-cache -fv &>/dev/null
         log_success "Font installed"
-        
+
         if [[ "$OS" == "WSL" ]]; then
             log_warn "WSL requires manual font installation on Windows side"
             echo "1. Download $font_url onto your Windows file system."
@@ -547,7 +576,7 @@ install_font() {
     else
         log_warn "Font installation failed"
     fi
-    
+
     cd - >/dev/null
 }
 
@@ -572,30 +601,30 @@ confirm() {
 
 main() {
     trap cleanup EXIT INT TERM
-    
+
     echo "=================================="
     echo "         NeoVim Installer         "
     echo "=================================="
     echo
-    
+
     detect_system
     set_directories
-    
+
     if [[ "$OS" == "Unknown" || "$ARCH" == "unknown" ]]; then
         log_error "Unsupported system: $OS-$ARCH"
         exit 1
     fi
-    
+
     log_info "Starting installation process..."
     echo
-    
+
     clean_previous_installations
     ensure_dependencies
     install_font
     install_neovim
     configure_shell
     install_config
-    
+
     echo
     echo "=================================="
     log_success "Installation complete!"
@@ -606,7 +635,7 @@ main() {
     echo "2. Run 'nvim' to start NeoVim"
     echo "3. Run ':checkhealth' in NeoVim to verify setup"
     echo
-    
+
     if command_exists nvim; then
         nvim --version | head -3
         echo
