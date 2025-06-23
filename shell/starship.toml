@@ -42,7 +42,7 @@ truncation_symbol = "…/"
 
 [character]
 success_symbol = "[     󱞪](#fce100)"
-error_symbol = "[❯](red)"
+error_symbol = "[     󱞪](red)"
 
 [aws]
 symbol = "  "
