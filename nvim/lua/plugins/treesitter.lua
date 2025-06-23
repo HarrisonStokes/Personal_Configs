@@ -11,13 +11,13 @@ return {
       -- Install parsers for all supported languages (only available ones)
       ensure_installed = {
         -- Core web languages
-        "html", "xml", "css", "scss",
+        "html", "xml", "css", "scss", "qmljs",
         
         -- JavaScript/TypeScript family (jsx is part of javascript parser)
         "javascript", "typescript", "tsx",
         
         -- Frontend frameworks
-        "vue", "svelte",
+        -- "vue", "svelte",
         
         -- Server-side languages with HTML
         "php", "ruby", "python", "java",

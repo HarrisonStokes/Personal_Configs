@@ -69,3 +69,13 @@ keymap("v", ">", ">gv", { desc = "Indent right" })
 
 -- Terminal mode (from modern config)
 keymap("t", "<Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+
+-- C++ Development keymaps
+keymap("n", "<leader>cp", ":!cd build && make -j$(nproc)<CR>", { desc = "Build project" })
+keymap("n", "<leader>cP", ":!./scripts/setup.sh<CR>", { desc = "Run setup script" })
+keymap("n", "<leader>cR", ":!cd build && ./drone_ground_control<CR>", { desc = "Run application" })
+keymap("n", "<leader>cC", ":!rm -rf build && mkdir build<CR>", { desc = "Clean build" })
+
+-- Qt specific
+keymap("n", "<leader>qu", ":!cd build && make && ./drone_ground_control<CR>", { desc = "Qt: Build and Run" })
+keymap("n", "<leader>qd", ":!designer-qt6<CR>", { desc = "Qt: Open Designer" })

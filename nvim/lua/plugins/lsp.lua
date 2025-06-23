@@ -30,17 +30,19 @@ return {
                     "rust_analyzer", -- Rust
                     "bashls",        -- Bash
                     "pylsp",         -- Python
-                    
+
                     -- Web languages - core
                     "html",          -- HTML
                     "cssls",         -- CSS
                     "ts_ls",         -- JavaScript/TypeScript
-                    
+
                     -- PHP
                     "intelephense",  -- PHP (more reliable than phpactor)
-                    
+
                     -- Additional useful servers
                     "marksman",      -- Markdown
+
+                    "cmake",
                 },
                 automatic_installation = true,
             })
@@ -106,8 +108,41 @@ return {
                 -- Custom handler for clangd
                 ["clangd"] = function()
                     lspconfig.clangd.setup({
-                        cmd = { "clangd", "--background-index" },
+                        cmd = { 
+                            "clangd", 
+                            "--background-index",
+                            "--clang-tidy",
+                            "--header-insertion=iwyu",
+                            "--completion-style=detailed",
+                            "--function-arg-placeholders",
+                            "--fallback-style=llvm",
+                            "--query-driver=/usr/bin/g++,/usr/bin/clang++",
+                            "--compile-commands-dir=build"
+                        },
                         capabilities = capabilities,
+                        filetypes = { "c", "cpp", "objc", "objcpp", "cuda", "proto" },
+                        init_options = {
+                            usePlaceholders = true,
+                            completeUnimported = true,
+                            clangdFileStatus = true,
+                        },
+                        settings = {
+                            clangd = {
+                                semanticHighlighting = true,
+                                fallbackFlags = { "-std=c++20" },
+                            }
+                        },
+                        on_attach = function(client, bufnr)
+                            -- Qt-specific settings
+                            vim.api.nvim_buf_set_option(bufnr, 'commentstring', '// %s')
+                        end,
+                    })
+                end,
+
+                ["cmake"] = function()
+                    lspconfig.cmake.setup({
+                        capabilities = capabilities,
+                        filetypes = { "cmake" },
                     })
                 end,
 
@@ -341,6 +376,13 @@ return {
                     "black",
                     "isort",
                     "eslint_d",
+
+                    "clang-format",
+                    "cpplint",
+                    "cmake-language-server",
+
+                    "shellcheck",
+                    "markdownlint",
                 },
             })
         end,
