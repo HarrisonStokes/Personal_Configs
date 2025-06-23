@@ -1,0 +1,159 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+
+# History settings
+HISTCONTROL=ignoreboth
+shopt -s histappend
+HISTSIZE=10000
+HISTFILESIZE=20000
+HISTTIMEFORMAT='%F %T '
+
+# Shell options
+shopt -s checkwinsize
+shopt -s globstar
+
+# Make less more friendly for non-text input files
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# Chroot detection
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# OS detection
+case "$OSTYPE" in
+    linux-gnu*) OS="Linux" ;;
+    darwin*) OS="macOS" ;;
+    cygwin*|msys*) OS="Windows" ;;
+    *) OS="Unknown" ;;
+esac
+
+# Prompt configuration
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes ;;
+esac
+
+parse_git_branch() {
+    git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+}
+
+if [ "$color_prompt" = yes ]; then
+    PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[1;33m\]$(parse_git_branch)\[\e[0m\]\$ '
+else
+    PS1='\u@\h:\w$(parse_git_branch)\$ '
+fi
+unset color_prompt
+
+case "$TERM" in
+    xterm*|rxvt*)
+        PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+        ;;
+    *)
+        ;;
+esac
+
+# Color support
+if [ -x /usr/bin/dircolors ]; then
+    if [ -r ~/.dircolors ]; then
+        eval "$(dircolors -b ~/.dircolors)"
+    else
+        eval "$(dircolors -b)"
+    fi > ~/.dircolors.cache
+    . ~/.dircolors.cache
+fi
+
+if [ "$OS" = "macOS" ]; then
+    alias ls='ls -G'
+else
+    alias ls='ls --color=auto'
+fi
+
+# Colored GCC output
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# Enhance less
+export LESS='--quit-if-one-screen --ignore-case --RAW-CONTROL-CHARS'
+export PAGER='less'
+
+# Functions
+extract() {
+    if [ -f "$1" ]; then
+        case "$1" in
+            *.tar.bz2) tar xjf "$1" ;;
+            *.tar.gz) tar xzf "$1" ;;
+            *.bz2) bunzip2 "$1" ;;
+            *.rar) unrar x "$1" ;;
+            *.gz) gunzip "$1" ;;
+            *.tar) tar xf "$1" ;;
+            *.tbz2) tar xjf "$1" ;;
+            *.zip) unzip "$1" ;;
+            *.Z) uncompress "$1" ;;
+            *.7z) 7z x "$1" ;;
+            *) echo "'$1' cannot be extracted via extract()" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+up() {
+    local levels=${1:-1}
+    local path=""
+    for ((i=0; i<${levels}; i++)); do
+        path="../$path"
+    done
+    cd "$path" || return
+}
+
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}
+
+findfile() {
+    find . -type f -name "*$1*"
+}
+
+# Bash completion
+if ! shopt -oq posix; then
+    if [ -f /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+    elif [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    elif [ -f /opt/homebrew/etc/bash_completion ]; then
+        . /opt/homebrew/etc/bash_completion
+    fi
+    if command -v git >/dev/null 2>&1; then
+        [ -f /usr/share/bash-completion/completions/git ] && . /usr/share/bash-completion/completions/git
+    fi
+    if command -v docker >/dev/null 2>&1; then
+        [ -f /usr/share/bash-completion/completions/docker ] && . /usr/share/bash-completion/completions/docker
+    fi
+fi
+
+# fzf integration
+if command -v fzf >/dev/null 2>&1; then
+    if [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+        . /usr/share/doc/fzf/examples/key-bindings.bash
+    fi
+    if [ -f /usr/share/bash-completion/completions/fzf ]; then
+        . /usr/share/bash-completion/completions/fzf
+    fi
+fi
+
+# Source aliases file
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# Lazy-load nvm
+export NVM_DIR="$HOME/.nvm"
+nvm() {
+    unset -f nvm
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    nvm "$@"
+}
+
+# Start starship
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init bash)"
+fi

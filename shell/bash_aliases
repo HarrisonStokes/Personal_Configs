@@ -1,0 +1,32 @@
+# ~/.bash_aliases: User-defined aliases for Bash
+
+# File navigation
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias cd..='cd ..'
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# System utilities
+alias mkdir='mkdir -p'
+alias df='df -h'
+alias du='du -h'
+alias free='free -h'
+
+# Safety aliases
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -i'
+
+# Git shortcuts
+alias gs='git status'
+alias ga='git add .'
+alias gc='git commit'
+alias gp='git push'
+
+# Terminal utilities
+alias cls='clear'
