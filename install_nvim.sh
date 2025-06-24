@@ -301,7 +301,7 @@ ensure_dependencies() {
     # Development dependencies
     local dev_packages=()
     case "$PACKAGE_MANAGER" in
-        apt) dev_packages=("nodejs" "npm" "python3-pip" "python3-venv" "pipx" "ripgrep" "fd-find") ;;
+        apt) dev_packages=("python3-pip" "python3-venv" "pipx" "ripgrep" "fd-find") ;;
         brew) dev_packages=("node" "python" "pipx" "ripgrep" "fd") ;;
         dnf|yum) dev_packages=("nodejs" "npm" "python3-pip" "python3-venv" "pipx" "ripgrep" "fd-find") ;;
         pacman) dev_packages=("nodejs" "npm" "python-pip" "python-pipx" "ripgrep" "fd") ;;
@@ -316,7 +316,7 @@ ensure_dependencies() {
     if ! command_exists node || ! command_exists npm; then
         log_warn "Node.js or npm not found. Attempting to install via nvm..."
         if ! command_exists nvm; then
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         fi
@@ -513,7 +513,8 @@ configure_shell() {
 install_config() {
     log_info "Installing NeoVim configuration..."
 
-    local repo_url="https://github.com/HarrisonStokes/Personal_Configs/archive/refs/heads/main.zip"
+    local reponame="personal-configs"
+    local repo_url="https://github.com/HarrisonStokes/$reponame/archive/refs/heads/main.zip"
     local temp_dir
     temp_dir=$(create_temp_dir)
 
@@ -522,7 +523,7 @@ install_config() {
     if curl -fsSL "$repo_url" -o config.zip && command_exists unzip; then
         unzip -q config.zip
         local extracted_dir
-        extracted_dir=$(find . -maxdepth 1 -type d -name "*Personal_Configs*" | head -1)
+        extracted_dir=$(find . -maxdepth 1 -type d -name "*$reponame*" | head -1)
 
         if [[ -n "$extracted_dir" && -d "$extracted_dir/nvim" ]]; then
             mkdir -p "$CONFIG_DIR"
