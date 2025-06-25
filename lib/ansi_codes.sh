@@ -7,7 +7,6 @@
 # Usage: source ./ansi_codes.sh
 #
 
-# Prevent multiple loading
 [[ "${_ANSI_CODES_LOADED:-}" == "true" ]] && return 0
 readonly _ANSI_CODES_LOADED=true
 

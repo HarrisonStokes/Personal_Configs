@@ -224,10 +224,11 @@ log_step() {
     local step="$1"
     local total="$2"
     local message="$3"
+    local end="${4:$'\n'}"
     
     should_log "INFO" || return 0
     
-    printf "%s[%d/%d]%s %s\n" "$CYAN" "$step" "$total" "$RESET" "$message" >&2
+    printf "%s[%d/%d]%s %s%s" "$CYAN" "$step" "$total" "$RESET" "$message" "$end" >&2
     
     log_to_file "STEP" "[$step/$total] $message"
 }
@@ -237,6 +238,7 @@ log_progress() {
     local total="$2"
     local width="${3:-30}"
     local message="${4:-}"
+    local end="${5:$'\n'}"
     
     should_log "INFO" || return 0
     
@@ -244,12 +246,12 @@ log_progress() {
     local filled=$((current * width / total))
     local empty=$((width - filled))
     
-    printf "\r%s[%s%s] %d%% (%d/%d)%s %s" \
+    printf "\r%s[%s%s] %d%% (%d/%d)%s %s%s" \
         "$BLUE" \
         "$(printf "%*s" $filled "" | tr ' ' '#')" \
         "$(printf "%*s" $empty "")" \
         "$percentage" "$current" "$total" \
-        "$RESET" "$message" >&2
+        "$RESET" "$message" "${end}" >&2
     
     if [[ $current -eq $total ]]; then
         echo >&2
