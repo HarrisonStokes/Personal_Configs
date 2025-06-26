@@ -2,25 +2,44 @@
 #
 # System Detection Library
 #
+# Usage: source ./system.sh
+#
+# Functions:
+#   detect_arch()               @desc Detects what architecture is being used.
+#   detect_os()                 @desc Detects what operating system is being used.
+#   detect_linux_distro()       @desc Detects what linux distribution is being used.
+#   detect_shell()              @desc Detects what shell is being.
+#   detect_pkg_manager()        @desc Detects what package manager is supported.
+#   detect_container()          @desc Detects container currently active.
+#   detect_virtualization()     @desc Detects if in a virtual environment.
+#   detect_system()             @desc Runs all detection functions.
+#   show_system_info()          @desc Prints system information.
+#   is_linux()                  @desc Determines if operating system is linux.
+#   is_macos()                  @desc Determines if operating system is macOS.
+#   is_container()              @desc Detemines if in a container.
+#
 
 [[ "${_SYSTEM_LOADED:-}" == "true" ]] && return 0
 readonly _SYSTEM_LOADED=true
 
-declare -g OS="" ARCH="" SHELL_NAME="" PACKAGE_MANAGER=""
-declare -g DISTRO="" DISTRO_VERSION="" CONTAINER="" VIRTUALIZATION=""
-declare -g SYSTEM_DETECTED=false
-
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
+_load_scripts() {
+    source ./logger.sh
+    log_set_prefix "System"
 }
+_load_scripts
 
-_system_log() {
-    local level="$1"
-    shift
-    if [[ "${SYSTEM_DEBUG:-false}" == "true" ]]; then
-        echo "[SYSTEM:$level] $*" >&2
-    fi
-}
+OS="" ARCH="" SHELL_NAME="" PACKAGE_MANAGER=""
+DISTRO="" DISTRO_VERSION="" CONTAINER="" VIRTUALIZATION=""
+SYSTEM_DETECTED=false
+
+is_linux() { [[ "$OS" == "Linux" || "$OS" == "WSL" ]]; }
+is_macos() { [[ "$OS" == "macOS" ]]; }
+is_container() { [[ "$CONTAINER" != "none" ]]; }
+
+# Auto-detect unless disabled
+if [[ "${SYSTEM_NO_AUTO_DETECT:-false}" != "true" ]]; then
+    detect_system
+fi
 
 detect_arch() {
     case "$(uname -m)" in
@@ -33,7 +52,7 @@ detect_arch() {
         *) ARCH="$(uname -m)" ;;
     esac
     export ARCH
-    _system_log debug "Architecture: $ARCH"
+    log_debug "Architecture: $ARCH"
 }
 
 detect_os() {
@@ -65,7 +84,7 @@ detect_os() {
             ;;
     esac
     export OS DISTRO DISTRO_VERSION
-    _system_log debug "OS: $OS, Distro: $DISTRO $DISTRO_VERSION"
+    log_debug "OS: $OS, Distro: $DISTRO $DISTRO_VERSION"
 }
 
 detect_linux_distro() {
@@ -101,7 +120,7 @@ detect_linux_distro() {
         DISTRO_VERSION="unknown"
     fi
     
-    _system_log debug "Linux distro: $DISTRO $DISTRO_VERSION"
+    log_debug "Linux distro: $DISTRO $DISTRO_VERSION"
 }
 
 detect_shell() {
@@ -115,25 +134,130 @@ detect_shell() {
         SHELL_NAME="$(basename "${SHELL:-sh}" 2>/dev/null)"
     fi
     export SHELL_NAME
-    _system_log debug "Shell: $SHELL_NAME"
+    log_debug "Shell: $SHELL_NAME"
 }
 
 detect_pkg_manager() {
-    local managers=("apt-get:apt" "brew:brew" "dnf:dnf" "yum:yum" "pacman:pacman" "zypper:zypper" "apk:apk" "pkg:pkg")
+    if [[ -n "${PACKAGE_MANAGER:-}" ]] && [[ "$PACKAGE_MANAGER" != "none" ]]; then
+        log_debug "Using package manager: $PACKAGE_MANAGER"
+        return 0
+    fi
     
-    PACKAGE_MANAGER="none"
-    for entry in "${managers[@]}"; do
-        local cmd="${entry%:*}"
-        local name="${entry#*:}"
-        
-        if command_exists "$cmd"; then
-            PACKAGE_MANAGER="$name"
-            break
+    local detected_os="${OS:-$(uname -s)}"
+    local detected_arch="${ARCH:-$(uname -m)}"
+    
+    log_debug "Detecting package manager for $detected_os on $detected_arch"
+    
+    case "$detected_os" in
+        "Linux"|"WSL")
+            if pkg_command_exists apt-get; then
+                PACKAGE_MANAGER="apt"
+            elif pkg_command_exists dnf; then
+                PACKAGE_MANAGER="dnf"
+            elif pkg_command_exists yum; then
+                PACKAGE_MANAGER="yum"
+            elif pkg_command_exists pacman; then
+                PACKAGE_MANAGER="pacman"
+            elif pkg_command_exists zypper; then
+                PACKAGE_MANAGER="zypper"
+            elif pkg_command_exists apk; then
+                PACKAGE_MANAGER="apk"
+            elif pkg_command_exists xbps-install; then
+                PACKAGE_MANAGER="xbps"
+            elif pkg_command_exists emerge; then
+                PACKAGE_MANAGER="portage"
+            elif pkg_command_exists slackpkg; then
+                PACKAGE_MANAGER="slackpkg"
+            elif pkg_command_exists swupd; then
+                PACKAGE_MANAGER="swupd"
+            elif pkg_command_exists eopkg; then
+                PACKAGE_MANAGER="eopkg"
+            elif pkg_command_exists urpmi; then
+                PACKAGE_MANAGER="urpmi"
+            elif pkg_command_exists nix-env; then
+                PACKAGE_MANAGER="nix"
+            elif pkg_command_exists guix; then
+                PACKAGE_MANAGER="guix"
+            fi
+            ;;
+        "Darwin"|"macOS")
+            if pkg_command_exists brew; then
+                PACKAGE_MANAGER="brew"
+            elif pkg_command_exists port; then
+                PACKAGE_MANAGER="macports"
+            elif pkg_command_exists nix-env; then
+                PACKAGE_MANAGER="nix"
+            fi
+            ;;
+        "FreeBSD")
+            if pkg_command_exists pkg; then
+                PACKAGE_MANAGER="pkg"
+            fi
+            ;;
+        "NetBSD")
+            if pkg_command_exists pkgin; then
+                PACKAGE_MANAGER="pkgin"
+            elif pkg_command_exists pkg_add; then
+                PACKAGE_MANAGER="pkg_add"
+            fi
+            ;;
+        "OpenBSD")
+            if pkg_command_exists pkg_add; then
+                PACKAGE_MANAGER="pkg_add"
+            fi
+            ;;
+        "DragonFly"|"DragonFlyBSD")
+            if pkg_command_exists pkg; then
+                PACKAGE_MANAGER="dports"
+            fi
+            ;;
+        "SunOS"|"Solaris")
+            if pkg_command_exists pkgutil; then
+                PACKAGE_MANAGER="pkgutil"
+            elif pkg_command_exists pkg; then
+                PACKAGE_MANAGER="solaris_pkg"
+            fi
+            ;;
+        "AIX")
+            if pkg_command_exists installp; then
+                PACKAGE_MANAGER="installp"
+            elif pkg_command_exists rpm; then
+                PACKAGE_MANAGER="rpm_aix"
+            fi
+            ;;
+        *"Windows"*|"CYGWIN"*|"MINGW"*|"MSYS"*)
+            if pkg_command_exists choco; then
+                PACKAGE_MANAGER="choco"
+            elif pkg_command_exists scoop; then
+                PACKAGE_MANAGER="scoop"
+            elif pkg_command_exists winget; then
+                PACKAGE_MANAGER="winget"
+            fi
+            ;;
+    esac
+    
+    # Universal package managers (try last to prefer system packages)
+    if [[ -z "$PACKAGE_MANAGER" ]] || [[ "$PKG_PREFER_SYSTEM_PACKAGES" != "true" ]]; then
+        if pkg_command_exists snap; then
+            PACKAGE_MANAGER="snap"
+        elif pkg_command_exists flatpak; then
+            PACKAGE_MANAGER="flatpak"
+        elif pkg_command_exists nix-env; then
+            PACKAGE_MANAGER="nix"
+        elif pkg_command_exists guix; then
+            PACKAGE_MANAGER="guix"
         fi
-    done
+    fi
+    
+    if [[ -z "$PACKAGE_MANAGER" ]]; then
+        PACKAGE_MANAGER="none"
+        log_error "No supported package manager found on $detected_os"
+        return 1
+    fi
     
     export PACKAGE_MANAGER
-    _system_log debug "Package manager: $PACKAGE_MANAGER"
+    log_info "Detected package manager: $PACKAGE_MANAGER"
+    return 0
 }
 
 detect_container() {
@@ -146,7 +270,7 @@ detect_container() {
         CONTAINER="container"
     fi
     export CONTAINER
-    _system_log debug "Container: $CONTAINER"
+    log_debug "Container: $CONTAINER"
 }
 
 detect_virtualization() {
@@ -159,13 +283,13 @@ detect_virtualization() {
         VIRTUALIZATION="vm"
     fi
     export VIRTUALIZATION
-    _system_log debug "Virtualization: $VIRTUALIZATION"
+    log_debug "Virtualization: $VIRTUALIZATION"
 }
 
 detect_system() {
     [[ "$SYSTEM_DETECTED" == "true" ]] && return 0
     
-    _system_log debug "Starting system detection"
+    log_debug "Starting system detection"
     
     detect_arch
     detect_os  
@@ -177,7 +301,7 @@ detect_system() {
     SYSTEM_DETECTED=true
     export SYSTEM_DETECTED
     
-    _system_log debug "Detection complete: $OS/$ARCH, $SHELL_NAME, $PACKAGE_MANAGER"
+    log_debug "Detection complete: $OS/$ARCH, $SHELL_NAME, $PACKAGE_MANAGER"
 }
 
 show_system_info() {
@@ -192,13 +316,3 @@ show_system_info() {
     [[ "$CONTAINER" != "none" ]] && printf "%-18s %s\n" "Container:" "$CONTAINER"
     [[ "$VIRTUALIZATION" != "none" ]] && printf "%-18s %s\n" "Virtualization:" "$VIRTUALIZATION"
 }
-
-# Compatibility functions
-is_linux() { [[ "$OS" == "Linux" || "$OS" == "WSL" ]]; }
-is_macos() { [[ "$OS" == "macOS" ]]; }
-is_container() { [[ "$CONTAINER" != "none" ]]; }
-
-# Auto-detect unless disabled
-if [[ "${SYSTEM_NO_AUTO_DETECT:-false}" != "true" ]]; then
-    detect_system
-fi

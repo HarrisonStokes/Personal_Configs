@@ -6,6 +6,28 @@
 # 
 # Usage: source ./ansi_codes.sh
 #
+# Functions:
+#   enable_colors()   @desc Enables colors to be printed
+#   disable_colors()  @desc Disables colors to be printed
+#   colorize()        @param [color, message]  @desc Prints message in that color
+#   black()           @param [message]
+#   red()             @param [message]
+#   green()           @param [message]
+#   yellow()          @param [message]
+#   blue()            @param [message]
+#   magenta()         @param [message]
+#   cyan()            @param [message]
+#   white()           @param [message]
+#   purple()          @param [message]
+#   pink()            @param [message]
+#   gray()            @param [message]
+#   grey()            @param [message]
+#   orange()          @param [message]
+#   bold()            @param [message]
+#   italic()          @param [message]
+#   underline()       @param [message]
+#   strike()          @param [message]
+#
 
 [[ "${_ANSI_CODES_LOADED:-}" == "true" ]] && return 0
 readonly _ANSI_CODES_LOADED=true

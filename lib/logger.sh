@@ -5,18 +5,50 @@
 #
 # Usage: source ./logger.sh
 #
+# Variables:
+#   LOG_LEVEL           @options [DEBUG, INFO, SUCCESS, WARN, ERROR, FATAL]
+#   LOG_TIMESTAMP       @options [true, false] @desc Enables timestamps.
+#   LOG_PREFIX          @desc Name of what is being logged.
+#   LOG_FILE            @options [name, -] @desc Log filename to wrtie to
+#   LOG_FORMAT          @options [json, simple, standard] @desc logging message format.
+# 
+# Functions:
+#   should_log()        @param [level]
+#   get_log_level_num() @param [level]
+#   get_timestamp()     @param []
+#   log_get_config()    @param []
+#
+#   log_set_level()     @param [level]
+#   log_set_prefix()    @param [prefix]
+#   log_set_file()      @param [filename]
+#   log_set_format()    @param [format]
+#
+#   log_to_term()       @param [color, level, message]
+#   log_to_file()       @param [level, message]
+#   log_output()        @param [color, level, message]
+#
+#   log_debug()         @param [message]
+#   log_info()          @param [message]
+#   log_success()       @param [message]
+#   log_warn()          @param [message]
+#   log_error()         @param [message]
+#   log_fatal()         @param [message]
+#
+#   log_section()       @param [title, width, separator]
+#   log_header()        @param [title]
+#
+#   log_step()          @param [curr_step, total_step, message, end]
+#   log_progress()      @param [curr_step, total_step, width, message, end]
+#
+#   log_table()         @param [table_headers]
+#   log_table_row()     @param [columns]
+#
 
 [[ "${_LOGGER_LOADED:-}" == "true" ]] && return 0
 readonly _LOGGER_LOADED=true
 
 _load_scripts() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [[ -f "$script_dir/ansi_codes.sh" ]]; then
-        source "$script_dir/ansi_codes.sh"
-    elif [[ -f "./ansi_codes.sh" ]]; then
-        source "./ansi_codes.sh"
-    fi
+    source "./ansi_codes.sh"
 }
 _load_scripts
 
@@ -353,30 +385,4 @@ log_get_config() {
     echo "  File: ${LOG_FILE:-none}"
     echo "  Format: $LOG_FORMAT"
     echo "  Colors: $(colors_enabled 2>/dev/null && echo "enabled" || echo "disabled")"
-}
-
-log_test() {
-    log_header "Logging Test"
-    
-    log_debug "This is a debug message"
-    log_info "This is an info message"
-    log_success "This is a success message"
-    log_warn "This is a warning message"
-    log_error "This is an error message"
-    
-    log_section "Progress Test"
-    for i in {1..5}; do
-        log_progress "$i" 5 30 "Processing item $i"
-        sleep 0.5
-    done
-    
-    log_section "Table Test"
-    log_table "Name" "Age" "City"
-    log_table_row "Alice" "25" "New York"
-    log_table_row "Bob" "30" "San Francisco"
-    log_table_row "Charlie" "35" "Los Angeles"
-    
-    log_step 1 3 "First step completed"
-    log_step 2 3 "Second step completed"  
-    log_step 3 3 "All steps completed"
 }
